@@ -7,46 +7,36 @@ from datetime import datetime, timedelta
 import numpy as np
 from collections import defaultdict
 import calendar
-import time
-
-# Importar novos módulos da arquitetura refatorada
-from config.settings import config, get_category_color
-from config.constants import get_acoes_b3_completas, get_fiis_completos
-from core.calculator import calculate_dividend_metrics, analyze_stocks_parallel
-from core.optimizer import optimize_portfolio
-from core.data_fetcher import data_fetcher
-from utils.helpers import categorize_ticker, get_ticker_list_by_categories, format_time_elapsed
-from utils.validators import validate_dividend_yield, validate_portfolio_capital
-from utils.formatters import format_currency, format_percentage, create_summary_text
-from utils.logger import setup_logger, log_performance
-
-# Configurar logger
-logger = setup_logger('streamlit_app')
+from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
 
 # --- Configurações da Página Streamlit ---
-st.set_page_config(
-    layout=config.LAYOUT,
-    page_title=config.PAGE_TITLE,
-    page_icon=config.PAGE_ICON
-)
-
-logger.info("🚀 Aplicativo iniciado")
+st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Dividendos")
 
 # --- Lista Curada de Tickers da B3 ---
 
 def get_all_b3_tickers():
     """Retorna lista expandida de tickers da B3 por categoria."""
-    # USAR NOVA IMPLEMENTAÇÃO DOS MÓDULOS
-    logger.info("Buscando lista completa de tickers da B3")
     
-    acoes = get_acoes_b3_completas()
-    fiis = get_fiis_completos()
+    # Importar listas expandidas
+    try:
+        from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
+        acoes = get_acoes_b3_completas()
+        fiis = get_fiis_completos()
+    except:
+        # Fallback para lista básica se importação falhar
+        acoes = [
+            "ITUB4.SA", "BBDC4.SA", "BBAS3.SA", "PETR3.SA", "PETR4.SA", 
+            "VALE3.SA", "WEGE3.SA", "LREN3.SA", "ABEV3.SA", "TAEE11.SA",
+        ]
+        fiis = [
+            "HGLG11.SA", "VISC11.SA", "MXRF11.SA", "KNRI11.SA",
+        ]
     
     # BDRs
     bdrs = [
         "AAPL34.SA", "MSFT34.SA", "AMZO34.SA", "GOGL34.SA", "META34.SA",
         "TSLA34.SA", "NVDC34.SA", "NFLX34.SA", "DIS34.SA", "COCA34.SA",
-        "PETR34.SA", "JPMC34.SA", "V1SA34.SA", "MAST34.SA", "PYPL34.SA"
+        "PETR34.SA", "JPMC34.SA", "VISA34.SA", "MAST34.SA", "PYPL34.SA"
     ]
     
     # ETFs
@@ -56,37 +46,171 @@ def get_all_b3_tickers():
         "GOVE11.SA", "BRAX11.SA", "XBOV11.SA", "BOVV11.SA"
     ]
     
-    all_tickers = acoes + fiis + bdrs + etfs
-    logger.info(f"✅ Total de {len(all_tickers)} tickers carregados")
-    return all_tickers
+    # Retornar todas as listas concatenadas
+    return acoes + fiis + bdrs + etfs
 
-# categorize_ticker agora vem de utils.helpers (já importado no topo)
+def categorize_ticker(ticker):
+    """Categoriza o ticker em: Ação, FII, BDR ou ETF."""
+    ticker_clean = ticker.replace(".SA", "").upper()
+    
+    # ETFs específicos
+    etfs_list = ["BOVA11", "SMAL11", "IVVB11", "SPXI11", "MATB11", "PIBB11", 
+                 "ISUS11", "FIND11", "DIVO11", "BOVX11", "GOVE11", "BRAX11", 
+                 "XBOV11", "BOVV11"]
+    if ticker_clean in etfs_list:
+        return "ETF"
+    
+    # FIIs terminam em 11 (mas não são ETFs)
+    if ticker_clean.endswith("11"):
+        return "FII"
+    
+    # BDRs terminam em 34 ou 35
+    if ticker_clean.endswith("34") or ticker_clean.endswith("35"):
+        return "BDR"
+    
+    # Default: Ação
+    return "Ação"
 
 # --- Funções Auxiliares ---
-# AGORA USANDO MÓDULOS REFATORADOS (calculate_dividend_metrics vem de core.calculator)
+
+@st.cache_resource(ttl=1800)
+def get_stock_object_yf(ticker_symbol):
+    """Retorna o objeto Ticker do yfinance."""
+    try:
+        stock = yf.Ticker(ticker_symbol)
+        if hasattr(stock, 'info') and stock.info:
+            return stock
+        return None
+    except Exception:
+        return None
+
+@st.cache_data(ttl=1800)
+def get_stock_info_yf(_stock_obj, ticker_symbol):
+    """Busca informações gerais da ação."""
+    if _stock_obj is None:
+        return None
+    try:
+        info = _stock_obj.info
+        if not info:
+            return None
+        
+        data = {
+            "ticker": ticker_symbol,
+            "nome_longo": info.get('longName', info.get('shortName', ticker_symbol)),
+            "setor": info.get('sector', 'N/A'),
+            "preco_atual": info.get('regularMarketPrice', info.get('currentPrice', 0)),
+            "pl_atual": info.get('trailingPE', 0),
+            "payout_ratio": info.get('payoutRatio', 0) * 100 if info.get('payoutRatio') else 0
+        }
+        return data
+    except Exception:
+        return None
+
+@st.cache_data(ttl=1800)
+def get_dividends_history(_stock_obj, years=5):
+    """Busca histórico de dividendos."""
+    if _stock_obj is None:
+        return pd.DataFrame()
+    
+    try:
+        end_date = datetime.today()
+        start_date = end_date - timedelta(days=years*365 + 100)
+        dividends = _stock_obj.dividends
+        
+        if dividends.empty:
+            return pd.DataFrame()
+        
+        # Filtrar período
+        dividends_index = dividends.index.tz_localize(None) if dividends.index.tz else dividends.index
+        start_dt = pd.to_datetime(start_date)
+        end_dt = pd.to_datetime(end_date)
+        
+        dividends_filtered = dividends[(dividends_index >= start_dt) & (dividends_index <= end_dt)]
+        
+        return dividends_filtered
+    except Exception:
+        return pd.DataFrame()
+
+@st.cache_data(ttl=1800)
+def calculate_dividend_metrics(ticker_symbol, years=5):
+    """Calcula métricas de dividendos para uma ação."""
+    stock = get_stock_object_yf(ticker_symbol)
+    if stock is None:
+        return None
+    
+    info = get_stock_info_yf(stock, ticker_symbol)
+    if info is None or info['preco_atual'] == 0:
+        return None
+    
+    dividends = get_dividends_history(stock, years)
+    if dividends.empty:
+        return None
+    
+    # Calcular métricas
+    preco_atual = info['preco_atual']
+    
+    # DY dos últimos 12 meses
+    end_date = datetime.today()
+    start_12m = end_date - timedelta(days=365)
+    dividends_index = dividends.index.tz_localize(None) if dividends.index.tz else dividends.index
+    dividends_12m = dividends[dividends_index >= pd.to_datetime(start_12m)]
+    dy_12m = (dividends_12m.sum() / preco_atual * 100) if not dividends_12m.empty and preco_atual > 0 else 0
+    
+    # Dividendos anuais
+    dividends_by_year = dividends.groupby(dividends.index.year).sum()
+    dy_medio = dividends_by_year.mean() / preco_atual * 100 if preco_atual > 0 else 0
+    
+    # Consistência (% de anos com dividendos)
+    anos_com_dividendos = len(dividends_by_year)
+    consistencia = (anos_com_dividendos / years) * 100
+    
+    # Crescimento (CAGR)
+    if len(dividends_by_year) >= 2:
+        start_val = dividends_by_year.iloc[0]
+        end_val = dividends_by_year.iloc[-1]
+        num_years = len(dividends_by_year) - 1
+        if start_val > 0 and num_years > 0:
+            cagr = ((end_val / start_val) ** (1 / num_years) - 1) * 100
+        else:
+            cagr = 0
+    else:
+        cagr = 0
+    
+    # Categoria
+    categoria = categorize_ticker(ticker_symbol)
+    
+    # Score composto (ponderação: DY 40%, Consistência 30%, Crescimento 30%)
+    score = (dy_12m * 0.4) + (consistencia * 0.3) + (max(0, min(cagr, 20)) * 0.3)
+    
+    return {
+        'ticker': ticker_symbol,
+        'nome': info['nome_longo'],
+        'categoria': categoria,
+        'setor': info['setor'],
+        'preco': preco_atual,
+        'dy_12m': round(dy_12m, 2),
+        'dy_medio': round(dy_medio, 2),
+        'consistencia': round(consistencia, 1),
+        'cagr_dividendos': round(cagr, 2),
+        'anos_com_div': anos_com_dividendos,
+        'score': round(score, 2),
+        'dividends_history': dividends
+    }
 
 def analyze_selected_stocks(selected_tickers, progress_bar=None):
-    """
-    Analisa os tickers selecionados.
-    NOVA IMPLEMENTAÇÃO: Usa análise paralela de core.calculator
-    """
-    logger.info(f"🚀 Iniciando análise de {len(selected_tickers)} ativos")
-    start_time = time.time()
+    """Analisa os tickers selecionados."""
+    results = []
+    total = len(selected_tickers)
     
-    def progress_callback(progress, message):
+    for idx, ticker in enumerate(selected_tickers):
         if progress_bar:
-            progress_bar.progress(progress, message)
+            progress_bar.progress((idx + 1) / total, f"Analisando {ticker}...")
+        
+        metrics = calculate_dividend_metrics(ticker)
+        if metrics:
+            results.append(metrics)
     
-    # USAR ANÁLISE PARALELA!
-    df_results = analyze_stocks_parallel(
-        selected_tickers,
-        progress_callback=progress_callback
-    )
-    
-    duration = time.time() - start_time
-    log_performance(logger, f"Análise de {len(df_results)} ativos", duration)
-    
-    return df_results
+    return pd.DataFrame(results)
 
 def optimize_portfolio(df_stocks, capital_total, min_acoes_por_empresa=100):
     """Otimiza o portfólio para maximizar DY e diversificação."""
@@ -228,25 +352,9 @@ def create_dividend_calendar(portfolio_df):
 
 # --- Interface Principal ---
 st.title("🎯 Otimizador de Carteira de Dividendos - B3 Completa")
-
-# Banner de melhorias
-st.success("""
-🚀 **NOVO! Versão 2.0 com Melhorias de Performance**
-- ⚡ **5-10x mais rápido**: Análise paralela de ativos
-- ✅ **Validação robusta**: Remove outliers automaticamente (DY > 40%)
-- 📝 **Logging estruturado**: Melhor rastreamento e debugging
-- 🏗️ **Arquitetura modular**: Código mais manutenível
-""")
-
 st.markdown("""
 Este aplicativo analisa **ações, FIIs, BDRs e ETFs** negociados na B3 e cria um portfólio otimizado 
 para gerar fluxo de caixa mensal consistente.
-
-**Novidades da versão 2.0:**
-- Análise até **10x mais rápida** com processamento paralelo
-- Detecção automática de outliers e dados inconsistentes
-- Validações rigorosas de qualidade de dados
-- Sistema de logs para melhor suporte
 """)
 
 # Sidebar com filtros de categoria
@@ -304,22 +412,14 @@ with tab1:
                 
                 st.info(f"✅ Encontrados {len(filtered_tickers)} ativos para análise")
                 
-                # Analisar com medição de tempo
-                start_time = time.time()
+                # Analisar
                 progress_bar = st.progress(0)
                 df_ranking = analyze_selected_stocks(filtered_tickers, progress_bar)
                 progress_bar.empty()
-                duration = time.time() - start_time
                 
                 if not df_ranking.empty:
                     st.session_state['df_ranking'] = df_ranking
-                    
-                    # Mostrar resultado com performance
-                    col_result1, col_result2 = st.columns(2)
-                    with col_result1:
-                        st.success(f"✅ Análise concluída! {len(df_ranking)} ativos com dados de dividendos.")
-                    with col_result2:
-                        st.info(f"⚡ Tempo: {format_time_elapsed(duration)} | Velocidade: {len(df_ranking)/duration:.1f} ativos/s")
+                    st.success(f"✅ Análise concluída! {len(df_ranking)} ativos com dados de dividendos.")
                 else:
                     st.error("Nenhum ativo com dados de dividendos encontrado.")
     
