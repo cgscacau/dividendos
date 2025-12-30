@@ -85,25 +85,49 @@ def get_all_b3_tickers():
 def analyze_selected_stocks(selected_tickers, progress_bar=None):
     """
     Analisa os tickers selecionados.
-    NOVA IMPLEMENTAÇÃO: Usa análise paralela de core.calculator
+    NOVA IMPLEMENTAÇÃO: Usa análise paralela de core.calculator com fallback
     """
-    logger.info(f"🚀 Iniciando análise de {len(selected_tickers)} ativos")
-    start_time = time.time()
+    if USING_NEW_MODULES:
+        try:
+            logger.info(f"🚀 Iniciando análise PARALELA de {len(selected_tickers)} ativos")
+            start_time = time.time()
+            
+            def progress_callback(progress, message):
+                if progress_bar:
+                    progress_bar.progress(progress, message)
+            
+            # USAR ANÁLISE PARALELA!
+            df_results = analyze_stocks_parallel(
+                selected_tickers,
+                progress_callback=progress_callback
+            )
+            
+            duration = time.time() - start_time
+            log_performance(logger, f"Análise de {len(df_results)} ativos", duration)
+            
+            return df_results
+        except Exception as e:
+            st.warning(f"⚠️ Análise paralela falhou: {str(e)}. Usando método sequencial...")
+            logger.error(f"Erro na análise paralela: {str(e)}")
     
-    def progress_callback(progress, message):
+    # FALLBACK: Análise sequencial (método antigo)
+    st.info("📊 Usando análise sequencial (modo legado)")
+    results = []
+    total = len(selected_tickers)
+    
+    for idx, ticker in enumerate(selected_tickers):
         if progress_bar:
-            progress_bar.progress(progress, message)
+            progress_bar.progress((idx + 1) / total, f"Analisando {ticker}...")
+        
+        try:
+            metrics = calculate_dividend_metrics(ticker)
+            if metrics:
+                results.append(metrics)
+        except Exception as e:
+            logger.warning(f"Erro ao analisar {ticker}: {str(e)}")
+            continue
     
-    # USAR ANÁLISE PARALELA!
-    df_results = analyze_stocks_parallel(
-        selected_tickers,
-        progress_callback=progress_callback
-    )
-    
-    duration = time.time() - start_time
-    log_performance(logger, f"Análise de {len(df_results)} ativos", duration)
-    
-    return df_results
+    return pd.DataFrame(results)
 
 def optimize_portfolio(df_stocks, capital_total, min_acoes_por_empresa=100):
     """Otimiza o portfólio para maximizar DY e diversificação."""
@@ -584,21 +608,101 @@ with tab2:
             
             calendario = create_dividend_calendar(portfolio)
             if calendario is not None and not calendario.empty:
-                # Gráfico mensal
+                # CRIAR HEATMAP POR ATIVO
+                st.markdown("### 📅 Calendário de Pagamentos por Ativo")
+                
+                # Preparar dados para heatmap
+                heatmap_data = []
+                meses_abrev = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                              'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+                
+                # Analisar últimos 24 meses para identificar padrão de pagamentos
+                end_date = datetime.today()
+                start_date = end_date - timedelta(days=730)
+                
+                for _, row in portfolio.iterrows():
+                    ticker = row['ticker'].replace('.SA', '')
+                    dividends = row['dividends_history']
+                    
+                    if dividends.empty:
+                        continue
+                    
+                    # Contar pagamentos por mês
+                    monthly_payments = {m: 0 for m in range(1, 13)}
+                    
+                    for date, div_value in dividends.items():
+                        date_naive = date.tz_localize(None) if hasattr(date, 'tz_localize') else date
+                        if date_naive >= pd.to_datetime(start_date):
+                            month = date_naive.month
+                            monthly_payments[month] += 1
+                    
+                    # Adicionar ao heatmap (normalizar para mostrar frequência)
+                    heatmap_data.append({
+                        'Ticker': ticker,
+                        **{meses_abrev[m-1]: min(monthly_payments[m], 4) for m in range(1, 13)}
+                    })
+                
+                if heatmap_data:
+                    df_heatmap = pd.DataFrame(heatmap_data)
+                    
+                    # Criar heatmap com plotly
+                    fig_heatmap = go.Figure(data=go.Heatmap(
+                        z=df_heatmap[meses_abrev].values,
+                        x=meses_abrev,
+                        y=df_heatmap['Ticker'],
+                        colorscale='Greens',
+                        text=df_heatmap[meses_abrev].values,
+                        texttemplate='%{text}',
+                        textfont={"size": 10},
+                        colorbar=dict(title="Pagamentos"),
+                        hovertemplate='<b>%{y}</b><br>Mês: %{x}<br>Pagamentos: %{z}<extra></extra>'
+                    ))
+                    
+                    fig_heatmap.update_layout(
+                        title='📊 Calendário de Pagamentos por Ativo',
+                        xaxis_title='Mês',
+                        yaxis_title='Ativo',
+                        height=max(400, len(df_heatmap) * 25),
+                        font=dict(size=10)
+                    )
+                    
+                    st.plotly_chart(fig_heatmap, use_container_width=True)
+                    
+                    # Legendas
+                    st.caption("💡 **Legenda:** Números indicam quantos pagamentos o ativo fez naquele mês nos últimos 24 meses")
+                    st.caption("⚠️ **Nota:** Nem todos os meses estão cobertos nos últimos 24 meses")
+                
+                # Métricas de resumo
+                st.markdown("### 📊 Resumo Mensal")
+                col1, col2, col3 = st.columns(3)
+                
+                meses_cobertos = (calendario['valor_estimado'] > 0).sum()
+                media_mensal = calendario['valor_estimado'].mean()
+                mediana = calendario['valor_estimado'].median()
+                
+                col1.metric("Meses Cóbertos", f"{meses_cobertos}/12")
+                col2.metric("Média Mensal", f"R$ {media_mensal:,.2f}")
+                col3.metric("Mediana Mensal", f"R$ {mediana:,.2f}")
+                
+                # Gráfico de barras mensal
+                st.markdown("### 💰 Fluxo Mensal Estimado")
                 fig_calendario = px.bar(calendario, x='mes', y='valor_estimado',
-                                       title='Fluxo Mensal Estimado de Dividendos',
+                                       title='Dividendos Estimados por Mês',
                                        labels={'valor_estimado': 'Valor (R$)', 'mes': 'Mês'},
-                                       text='valor_estimado')
+                                       text='valor_estimado',
+                                       color='valor_estimado',
+                                       color_continuous_scale='Greens')
                 fig_calendario.update_traces(texttemplate='R$ %{text:.0f}', textposition='outside')
-                st.plotly_chart(fig_calendario, width="stretch")
+                fig_calendario.update_layout(showlegend=False)
+                st.plotly_chart(fig_calendario, use_container_width=True)
                 
                 # Tabela detalhada
-                with st.expander("📊 Detalhes Mensais"):
+                with st.expander("📋 Ver Detalhes por Mês"):
                     df_cal_display = calendario[['mes', 'valor_estimado', 'acoes_pagantes']].copy()
                     df_cal_display.columns = ['Mês', 'Valor Estimado (R$)', 'Ativos Pagantes']
                     st.dataframe(
                         df_cal_display.style.format({'Valor Estimado (R$)': 'R$ {:.2f}'}),
-                        width="stretch"
+                        use_container_width=True
                     )
             else:
                 st.warning("Não foi possível gerar o calendário de dividendos")
