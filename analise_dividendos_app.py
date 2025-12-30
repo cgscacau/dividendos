@@ -28,9 +28,9 @@ try:
     from utils.logger import setup_logger, log_performance
     
     # Configurar logger
-    logger = setup_logger('streamlit_app')
+    logger = setup_logger('otimizador_dividendos')
     USING_NEW_MODULES = True
-    logger.info("✅ Novos módulos carregados com sucesso!")
+    logger.info("✅ Sistema de otimização de dividendos iniciado - Versão 2.0")
     
 except Exception as e:
     st.error(f"⚠️ Erro ao carregar novos módulos: {str(e)}")
@@ -47,7 +47,7 @@ st.set_page_config(
     page_icon=config.PAGE_ICON
 )
 
-logger.info("🚀 Aplicativo iniciado")
+logger.info("Sistema de Análise de Dividendos B3 - Sessão iniciada")
 
 # --- Lista Curada de Tickers da B3 ---
 
@@ -268,38 +268,52 @@ def create_dividend_calendar(portfolio_df):
     return pd.DataFrame(monthly_summary)
 
 # --- Interface Principal ---
-st.title("🎯 Otimizador de Carteira de Dividendos - B3 Completa")
+# Cabeçalho profissional
+st.markdown("""
+<h1 style='text-align: center; color: #1f77b4;'>
+📊 DividendOS - Sistema Profissional de Análise B3
+</h1>
+<p style='text-align: center; color: #666; font-size: 18px;'>
+Plataforma de Análise e Otimização de Carteiras de Dividendos
+</p>
+""", unsafe_allow_html=True)
 
 # Banner de melhorias
 if USING_NEW_MODULES:
     st.success("""
-    🚀 **NOVO! Versão 2.0 com Melhorias de Performance ATIVADA** ✅
-    - ⚡ **5-10x mais rápido**: Análise paralela de ativos
-    - ✅ **Validação robusta**: Remove outliers automaticamente (DY > 40%)
-    - 📝 **Logging estruturado**: Melhor rastreamento e debugging
-    - 🏗️ **Arquitetura modular**: Código mais manutenível
+    ✅ **Sistema Operacional - Versão 2.0 Enterprise**
     
-    📊 **Configuração atual:** {workers} workers paralelos | Cache: {cache}min
+    **Características Técnicas:**
+    - ⚡ Processamento Paralelo: Análise 5-10x mais rápida
+    - 🛡️ Validação Avançada: Filtros automáticos de outliers (DY > 40%)
+    - 📊 Sistema de Monitoramento: Logs estruturados e rastreabilidade
+    - 🏗️ Arquitetura Enterprise: Módulos independentes e escaláveis
+    
+    **Configuração Atual:** {workers} workers | Cache otimizado: {cache}min
     """.format(
         workers=config.MAX_WORKERS if USING_NEW_MODULES else "N/A",
         cache=config.CACHE_TTL_SHORT//60 if USING_NEW_MODULES else "N/A"
     ))
 else:
     st.warning("""
-    ⚠️ **Executando em modo legado** 
-    Os novos módulos não foram carregados. Algumas funcionalidades podem estar limitadas.
+    ⚠️ **Sistema em Modo Compatibilidade**
+    
+    Executando com módulos de compatibilidade. Algumas funcionalidades avançadas podem estar limitadas.
+    Para melhor performance, verifique a instalação dos módulos enterprise.
     """)
 
 st.markdown("""
-Este aplicativo analisa **ações, FIIs, BDRs e ETFs** negociados na B3 e cria um portfólio otimizado 
-para gerar fluxo de caixa mensal consistente.
+<div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #1f77b4;'>
 
-**Novidades da versão 2.0:**
-- Análise até **10x mais rápida** com processamento paralelo
-- Detecção automática de outliers e dados inconsistentes
-- Validações rigorosas de qualidade de dados
-- Sistema de logs para melhor suporte
-""")
+### 🎯 Sobre o Sistema
+
+Plataforma profissional para análise quantitativa e otimização de carteiras focadas em dividendos.
+
+**Cobertura:** Ações, FIIs, BDRs e ETFs da B3  
+**Objetivo:** Maximizar fluxo de caixa mensal com diversificação inteligente
+
+</div>
+""", unsafe_allow_html=True)
 
 # Sidebar com filtros de categoria
 st.sidebar.header("🔍 Filtros de Segmento")
@@ -326,11 +340,12 @@ if not categorias_ativas:
     st.sidebar.warning("⚠️ Selecione pelo menos um segmento!")
 
 # Criar abas principais
-tab1, tab2, tab3 = st.tabs(["📊 Ranking de Ativos", "💼 Otimizador de Portfólio", "📈 Simulação Histórica"])
+tab1, tab2, tab3 = st.tabs(["📈 Análise de Ativos", "🔧 Otimização de Carteira", "📊 Backtesting Histórico"])
 
 # ===== TAB 1: RANKING DE ATIVOS =====
 with tab1:
-    st.header("📊 Ranking dos Melhores Ativos para Dividendos")
+    st.header("📈 Análise Quantitativa de Ativos - B3")
+    st.caption("🎯 Score composto: DY (40%) + Consistência (30%) + CAGR (30%)")
     
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
@@ -347,7 +362,7 @@ with tab1:
             st.success("Cache limpo!")
     
     if categorias_ativas:
-        if st.button("🚀 Analisar Ativos Selecionados", type="primary"):
+        if st.button("🔍 Executar Análise Quantitativa", type="primary", help="Inicia análise de todos os ativos selecionados"):
             with st.spinner("Analisando ativos..."):
                 # Buscar todos os tickers
                 all_tickers = get_all_b3_tickers()
@@ -484,7 +499,8 @@ with tab1:
 
 # ===== TAB 2: OTIMIZADOR DE PORTFÓLIO =====
 with tab2:
-    st.header("💼 Otimizador de Portfólio")
+    st.header("🔧 Otimização de Carteira de Investimentos")
+    st.caption("📊 Alocação baseada em score, diversificação por setor e liquidez")
     
     if 'df_ranking' not in st.session_state:
         st.warning("⚠️ Por favor, gere o ranking de ativos primeiro na aba 'Ranking de Ativos'")
@@ -523,7 +539,7 @@ with tab2:
             )
         
         # Botão para otimizar
-        if st.button("🚀 Otimizar Portfólio", type="primary", key="btn_otimizar"):
+        if st.button("⚡ Gerar Carteira Otimizada", type="primary", key="btn_otimizar", help="Cria portfólio otimizado baseado nos parâmetros definidos"):
             with st.spinner("Otimizando portfólio..."):
                 # Filtrar ações com DY mínimo
                 df_elegivel = df_ranking[df_ranking['dy_12m'] >= dy_minimo_port].copy()
@@ -719,7 +735,8 @@ with tab2:
 
 # ===== TAB 3: SIMULAÇÃO HISTÓRICA =====
 with tab3:
-    st.header("📈 Simulação Histórica do Portfólio")
+    st.header("📊 Backtesting e Validação de Estratégia")
+    st.caption("🕙 Análise de performance histórica com dados reais de dividendos")
     
     if 'portfolio_otimizado' not in st.session_state:
         st.warning("⚠️ Por favor, otimize um portfólio primeiro na aba 'Otimizador de Portfólio'")
@@ -730,7 +747,7 @@ with tab3:
         
         anos_simulacao = st.slider("Anos de Histórico", 1, 5, 5)
         
-        if st.button("📊 Simular Histórico", type="primary"):
+        if st.button("🕙 Executar Backtesting", type="primary", help="Simula performance histórica com dados reais"):
             with st.spinner("Simulando histórico..."):
                 df_monthly, df_annual = simulate_portfolio_history(portfolio, anos_simulacao)
                 

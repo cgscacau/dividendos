@@ -53,7 +53,7 @@ def setup_logger(name: str = None, log_to_file: bool = True) -> logging.Logger:
         # Nome do arquivo com data
         log_filename = os.path.join(
             log_dir,
-            f'app_{datetime.now().strftime("%Y%m%d")}.log'
+            f'dividendos_b3_{datetime.now().strftime("%Y%m%d")}.log'
         )
         
         # Handler rotativo

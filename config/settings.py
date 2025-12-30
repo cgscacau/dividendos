@@ -76,8 +76,8 @@ class AppConfig:
     })
     
     # ===== UI/UX =====
-    PAGE_TITLE: str = '🎯 Otimizador de Carteira de Dividendos'
-    PAGE_ICON: str = '💰'
+    PAGE_TITLE: str = 'DividendOS - Sistema de Análise B3'
+    PAGE_ICON: str = '📊'
     LAYOUT: str = 'wide'
     
     # ===== EXPORTAÇÃO =====
