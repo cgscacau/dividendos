@@ -1,4 +1,4 @@
-# 🎯 Otimizador de Carteira de Dividendos
+# 🎯 Otimizador de Carteira de Dividendos - B3 Completa
 
 ## 🚀 Acesso Rápido
 
@@ -6,126 +6,287 @@
 
 ## ✨ O Que Este Aplicativo Faz?
 
-Este é um **otimizador completo de carteira de dividendos** que ajuda investidores brasileiros a:
+Este é um **otimizador completo de carteira de dividendos** que analisa **TODA a B3** - incluindo **Ações, FIIs, BDRs e ETFs** - e ajuda investidores brasileiros a:
 
-1. **🏆 Descobrir as Melhores Ações** - Ranking automático de 30+ ações com melhor histórico de dividendos
-2. **💼 Criar Portfólio Otimizado** - Define quantas ações comprar de cada empresa baseado no seu capital
+1. **🏆 Descobrir os Melhores Ativos** - Ranking automático com filtros por segmento
+2. **💼 Criar Portfólio Otimizado** - Define quantos ativos comprar baseado no seu capital
 3. **📅 Planejar Fluxo de Caixa** - Mostra quanto você receberá por mês em dividendos
 4. **📈 Validar Estratégia** - Simula o desempenho real do portfólio nos últimos 5 anos
 
-## 🎯 Como Usar (Passo a Passo)
+## 🆕 NOVIDADE: Análise Completa da B3
 
-### Passo 1️⃣: Ranking de Ações
-1. Abra o aplicativo
-2. Vá para a aba **"📊 Ranking de Ações"**
-3. Clique em **"🔄 Atualizar Ranking"**
-4. Aguarde 2-3 minutos enquanto analisa 30+ ações
-5. Explore os resultados:
-   - Use filtros (setor, DY mínimo, consistência)
+### 📊 Segmentos Disponíveis
+
+Agora você pode analisar **TODOS os tipos de ativos**:
+
+- **📈 Ações** - Empresas brasileiras (PETR4, VALE3, ITUB4, etc.)
+- **🏢 FIIs** - Fundos Imobiliários (HGLG11, VISC11, MXRF11, etc.)
+- **🌎 BDRs** - Ações Internacionais (AAPL34, MSFT34, AMZO34, etc.)
+- **📊 ETFs** - Fundos de Índice (BOVA11, SMAL11, IVVB11, etc.)
+
+### 🎯 Filtros Inteligentes por Segmento
+
+**Na barra lateral**, você pode selecionar quais segmentos deseja analisar:
+
+```
+☑️ Ações (empresas brasileiras)
+☑️ FIIs (fundos imobiliários)
+☐ BDRs (ações internacionais)
+☐ ETFs (fundos de índice)
+```
+
+**Exemplos de uso:**
+- ✅ Quer apenas FIIs? Desmarque os outros
+- ✅ Quer mix de Ações + FIIs? Marque ambos
+- ✅ Quer diversificação global com BDRs? Inclua BDRs
+
+### 🔍 Verificação de Liquidez
+
+O sistema verifica automaticamente:
+- ✅ Ativos com negociação nos **últimos 60 dias**
+- ✅ Volume médio mínimo de negociação
+- ✅ Dados disponíveis de dividendos
+
+## 📊 Ativos Incluídos
+
+### 📈 Ações (100+)
+Setores completos:
+- **Bancos**: ITUB4, BBDC4, BBAS3, SANB11, BPAC11
+- **Energia**: TAEE11, EGIE3, CPLE6, CMIG4, ENBR3, NEOE3
+- **Petróleo/Gás**: PETR3, PETR4, PRIO3, RECV3
+- **Mineração**: VALE3, BRAP4, GOAU4, CMIN3, GGBR4
+- **Saneamento**: SAPR11, SBSP3, CSMG3
+- **Telecom**: TIMS3, VIVT3
+- **Varejo**: LREN3, MGLU3, VVAR3, PETZ3, SOMA3
+- **Alimentação**: ABEV3, BRFS3, JBSS3, BEEF3, MRFG3
+- **Construção**: CYRE3, MRVE3, EZTC3, TEND3
+- **Papel/Celulose**: KLBN11, SUZB3
+- **Saúde**: RDOR3, FLRY3, HAPV3, QUAL3
+- **Educação**: COGN3, YDUQ3, ANIM3
+- **Logística**: CCRO3, RAIL3, ECOR3
+- **E muito mais!**
+
+### 🏢 FIIs (50+)
+Tipos diversos:
+- **Lajes Corporativas**: HGLG11, BTLG11, XPLG11, KNCR11
+- **Shoppings**: MALL11, XPML11, VISC11, HSML11
+- **Logística**: HGRU11, HGRE11, VILG11, TRXF11
+- **Híbridos**: MXRF11, KNRI11, HGPO11
+- **Recebíveis**: RZTR11, BCFF11, RBRR11, KFOF11
+- **Títulos**: PVBI11, IRDM11, BCRI11
+- **E mais!**
+
+### 🌎 BDRs (40+)
+Empresas globais:
+- **Tech**: AAPL34, MSFT34, GOGL34, AMZO34, META34, NVDC34
+- **Streaming**: NFLX34, SPOT34, DISB34
+- **E-commerce**: UBER34, AIRB34
+- **Financeiro**: V1SA34, PYPL34
+- **Consumo**: NIKE34, COCA34, PEP34, STARBUCKS34
+- **Industrial**: BOEI34, UPS34
+- **Asiáticas**: BABA34, BIDU34, TCEHY34
+- **Europeias**: ASML34, NESN34, LVMH34
+
+### 📊 ETFs (15+)
+Índices diversos:
+- **Ibovespa**: BOVA11, BOVX11
+- **Small Caps**: SMAL11
+- **Internacional**: IVVB11, SPXI11, ISUS11
+- **Dividendos**: DIVO11
+- **Setoriais**: MATB11, FIND11, PIBB11
+
+## 🎯 Como Usar o Aplicativo
+
+### Passo 1️⃣: Selecionar Segmentos
+
+**Na barra lateral esquerda:**
+1. Marque os segmentos que deseja analisar:
+   - ☑️ Ações
+   - ☑️ FIIs  
+   - ☑️ BDRs
+   - ☑️ ETFs
+
+### Passo 2️⃣: Ranking de Ativos
+
+**Na aba "📊 Ranking de Ativos":**
+1. Clique em **"🚀 Analisar Ativos Selecionados"**
+2. Aguarde a análise (pode levar alguns minutos)
+3. Explore os resultados:
+   - Use filtros adicionais (categoria, setor, DY, consistência)
    - Veja gráficos comparativos
    - Identifique as melhores oportunidades
 
-### Passo 2️⃣: Otimizar Portfólio
-1. Vá para a aba **"💼 Otimizador de Portfólio"**
-2. Configure:
-   - **Capital Total**: Quanto você tem para investir (ex: R$ 50.000)
-   - **Lote Mínimo**: Geralmente 100 ações
-   - **DY Mínimo**: Filtro de qualidade (sugestão: 4%)
-3. Clique em **"🚀 Otimizar Portfólio"**
-4. Veja os resultados:
-   - Quantas ações comprar de cada empresa
-   - Quanto investir em cada uma
-   - DY médio da sua carteira
-   - Calendário mensal de dividendos
-5. Baixe o portfólio em CSV
+### Passo 3️⃣: Otimizar Portfólio
 
-### Passo 3️⃣: Simular Histórico
-1. Vá para a aba **"📈 Simulação Histórica"**
-2. Escolha quantos anos simular (1 a 5)
-3. Clique em **"📊 Simular Histórico"**
-4. Analise:
-   - Quanto você REALMENTE teria recebido
+**Na aba "💼 Otimizador de Portfólio":**
+1. Configure:
+   - **Capital Total**: Quanto você tem (ex: R$ 50.000)
+   - **Lote Mínimo**: Geralmente 100 (ações) ou 1 (FIIs)
+   - **DY Mínimo**: Filtro de qualidade (sugestão: 4%)
+2. Clique em **"🚀 Otimizar Portfólio"**
+3. Veja:
+   - Quantos ativos comprar de cada tipo
+   - Calendário mensal de dividendos
+   - Gráficos de distribuição
+
+### Passo 4️⃣: Simular Histórico
+
+**Na aba "📈 Simulação Histórica":**
+1. Escolha período (1 a 5 anos)
+2. Clique em **"📊 Simular Histórico"**
+3. Analise:
+   - Quanto você teria recebido
    - Evolução ano a ano
-   - Volatilidade mensal
    - ROI apenas em dividendos
 
-## 💡 Exemplo Prático
+## 💡 Exemplos Práticos
 
-**Cenário:** Você tem R$ 50.000 e quer renda passiva mensal
+### Exemplo 1: Carteira Conservadora (Ações + FIIs)
 
-**No Aplicativo:**
+**Configuração:**
+- ☑️ Ações
+- ☑️ FIIs
+- ☐ BDRs
+- ☐ ETFs
+- Capital: R$ 100.000
+- DY Mínimo: 6%
 
-1. **Ranking** mostra as melhores ações:
-   - ITSA4: Score 8.5, DY 7.2%
-   - TAEE11: Score 8.2, DY 8.1%
-   - BBDC4: Score 7.9, DY 6.5%
-   - ... e mais
+**Resultado esperado:**
+- 60% em Ações de alta dividendo (ITSA4, TAEE11, BBDC4)
+- 40% em FIIs (HGLG11, MXRF11, VISC11)
+- DY Médio: ~7.5%
+- Dividendos mensais: ~R$ 625
 
-2. **Otimizador** calcula:
-   - Comprar 500 ITSA4 = R$ 5.000
-   - Comprar 300 TAEE11 = R$ 8.000
-   - Comprar 400 BBDC4 = R$ 6.500
-   - ... (total 10 empresas)
-   - **DY Médio da Carteira: 7.1%**
-   - **Dividendos Mensais: ~R$ 295**
+### Exemplo 2: Carteira Agressiva (Ações Growth + BDRs)
 
-3. **Simulação Histórica** mostra:
-   - Últimos 5 anos: R$ 17.850 recebidos
-   - ROI: 35.7% (apenas dividendos)
-   - Média mensal real: R$ 297
+**Configuração:**
+- ☑️ Ações
+- ☐ FIIs
+- ☑️ BDRs
+- ☐ ETFs
+- Capital: R$ 50.000
+- DY Mínimo: 2%
 
-## 📊 Principais Funcionalidades
+**Resultado esperado:**
+- Mix de ações brasileiras de tecnologia
+- BDRs de empresas americanas (AAPL34, MSFT34)
+- Foco em crescimento + dividendos
+- Diversificação geográfica
+
+### Exemplo 3: Renda Passiva Pura (FIIs)
+
+**Configuração:**
+- ☐ Ações
+- ☑️ FIIs
+- ☐ BDRs
+- ☐ ETFs
+- Capital: R$ 200.000
+- DY Mínimo: 8%
+
+**Resultado esperado:**
+- 100% FIIs de alta distribuição
+- Dividendos mensais consistentes
+- DY Médio: ~9%
+- Dividendos mensais: ~R$ 1.500
+
+### Exemplo 4: Estratégia Passiva (ETFs)
+
+**Configuração:**
+- ☐ Ações
+- ☐ FIIs
+- ☐ BDRs
+- ☑️ ETFs
+- Capital: R$ 30.000
+
+**Resultado esperado:**
+- BOVA11 (Ibovespa)
+- SMAL11 (Small Caps)
+- DIVO11 (Dividendos)
+- Diversificação automática
+- Baixo custo de gestão
+
+## 📊 Funcionalidades Principais
 
 ### 🏆 Ranking Inteligente
-- Analisa 30+ ações automaticamente
-- Calcula **Score Composto**:
-  - 40% DY (Dividend Yield)
-  - 30% Consistência de pagamento
-  - 30% CAGR (crescimento dos dividendos)
-- Filtros por setor, DY mínimo, consistência
-- Visualizações interativas
+- ✅ Analisa automaticamente centenas de ativos
+- ✅ Calcula **Score Composto**: DY (40%) + Consistência (30%) + CAGR (30%)
+- ✅ Filtros por categoria, setor, DY, consistência
+- ✅ Visualizações interativas coloridas por segmento
+- ✅ Análise comparativa por categoria
 
 ### 💼 Otimizador de Portfólio
-- Distribui capital automaticamente
-- Considera diversificação por setor
-- Trabalha com lotes fechados (100 ações)
-- Maximiza DY mantendo qualidade
-- Gráficos de alocação
+- ✅ Distribui capital automaticamente
+- ✅ Considera diversificação por setor e categoria
+- ✅ Trabalha com lotes adequados (100 para ações, 1 para FIIs)
+- ✅ Maximiza DY mantendo qualidade
+- ✅ Gráficos de alocação por ativo e categoria
 
 ### 📅 Calendário de Dividendos
-- Mostra em quais meses você receberá pagamentos
-- Identifica quais empresas pagam em cada mês
-- Estima valor mensal baseado em histórico
-- Ajuda a planejar fluxo de caixa
+- ✅ Identifica meses de pagamento de cada ativo
+- ✅ Estima fluxo mensal baseado em histórico
+- ✅ Mostra quais ativos pagam em cada mês
+- ✅ Ajuda a planejar fluxo de caixa
 
 ### 📈 Simulação Histórica Real
-- Usa dados reais dos últimos 5 anos
-- Calcula quanto você TERIA recebido
-- Análise estatística completa
-- ROI detalhado
-- Gráficos de evolução
+- ✅ Usa dados reais dos últimos 5 anos
+- ✅ Calcula dividendos efetivamente recebidos
+- ✅ ROI detalhado por ano e mês
+- ✅ Análise estatística completa
 
-## 🏢 Ações Analisadas
+## 🎨 Interface Melhorada
 
-**Setores Cobertos:**
-- 🏦 **Bancos**: ITUB4, BBDC4, BBAS3, SANB11
-- ⚡ **Energia**: TAEE11, EGIE3, CPLE6, CMIG4, ENBR3
-- 💧 **Saneamento**: SAPR11, SBSP3, CSMG3
-- 📱 **Telecom**: TIMS3, VIVT3
-- 🛡️ **Seguros**: BBSE3, PSSA3
-- 🛢️ **Petróleo**: PETR4, PRIO3
-- 🏢 **Imobiliário**: TRPL4, MULT3
-- 🛒 **Varejo**: LREN3
-- 📊 **Holdings**: ITSA4
+### Cores por Categoria
+- 🔵 **Ações** - Azul
+- 🟠 **FIIs** - Laranja
+- 🟢 **BDRs** - Verde
+- 🔴 **ETFs** - Vermelho
+
+### Sidebar Interativa
+```
+🔍 Filtros de Segmento
+┌─────────────────────────┐
+│ ☑️ Ações                │
+│ ☑️ FIIs                 │
+│ ☐ BDRs                  │
+│ ☐ ETFs                  │
+└─────────────────────────┘
+```
+
+## 🔧 Melhorias Técnicas
+
+### Performance
+- ✅ Cache inteligente (24h para lista de tickers)
+- ✅ Cache de 30min para dados de mercado
+- ✅ Limitação a 100 ativos por análise (performance)
+- ✅ Verificação paralela de liquidez
+
+### Validação
+- ✅ Verifica negociação nos últimos 60 dias
+- ✅ Valida volume mínimo de negociação
+- ✅ Exclui ativos sem dados de dividendos
+- ✅ Categorização automática precisa
+
+## 🆚 Comparação com Versão Anterior
+
+| Funcionalidade | Versão Antiga | Versão Nova |
+|---|---|---|
+| Tipos de ativos | Apenas ~30 ações | 200+ (Ações, FIIs, BDRs, ETFs) |
+| Seleção | Lista fixa | ✅ Filtros por segmento |
+| Categorização | Manual | ✅ Automática |
+| Validação liquidez | Não tinha | ✅ Últimos 60 dias |
+| Gráficos | Uma cor | ✅ Cores por categoria |
+| Análise setorial | Limitada | ✅ Completa por segmento |
 
 ## 📖 Glossário
 
-- **DY (Dividend Yield)**: % de retorno em dividendos sobre o preço da ação
-- **Consistência**: % de anos em que a empresa pagou dividendos
-- **CAGR**: Taxa de crescimento composta anual dos dividendos
+- **DY (Dividend Yield)**: % de retorno em dividendos sobre o preço
+- **FII**: Fundo de Investimento Imobiliário
+- **BDR**: Brazilian Depositary Receipt (ações internacionais)
+- **ETF**: Exchange Traded Fund (fundo de índice)
+- **CAGR**: Taxa de crescimento composta anual
+- **Consistência**: % de anos com pagamento de dividendos
 - **Score**: Métrica que combina DY, Consistência e CAGR
-- **Lote**: Quantidade mínima para negociação (geralmente 100 ações)
-- **ROI**: Retorno sobre investimento
+- **Lote**: Quantidade mínima para negociação
 
 ## 🔧 Instalação Local
 
@@ -143,59 +304,77 @@ streamlit run analise_dividendos_app.py
 
 ## 📦 Dependências
 
-- streamlit
-- pandas
-- numpy
-- yfinance
-- plotly
+```
+streamlit
+pandas
+numpy
+yfinance
+plotly
+requests
+beautifulsoup4
+lxml
+```
 
 ## ⚠️ Avisos Importantes
 
-1. **Dados do Yahoo Finance**: Podem ter atrasos ou imprecisões
-2. **Projeções**: Baseadas em histórico, não garantem resultados futuros
+1. **Dados**: Yahoo Finance pode ter atrasos ou imprecisões
+2. **Projeções**: Baseadas em histórico, não garantem futuro
 3. **Não Considera**:
-   - Impostos (15% sobre dividendos)
-   - Corretagem
-   - Valorização/desvalorização das ações
-4. **Uso**: Apenas para fins educacionais
-5. **Não é**: Recomendação de investimento
-
-## 🆚 Diferença das Versões
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `analise_dividendos_app.py` | ✅ **Versão Otimizada** (atual) |
-| `analise_dividendos_app_backup.py` | Versão original (análise individual) |
-| `analise_dividendos_otimizado.py` | Cópia da versão otimizada |
-
-## 📚 Documentação Adicional
-
-- `README_MELHORIAS.md` - Documentação técnica detalhada
-- Comentários no código explicam cada função
+   - Impostos (15% sobre dividendos, IR BDR diferente)
+   - Corretagem e taxas
+   - Valorização/desvalorização dos ativos
+   - Eventos extraordinários
+4. **Performance**: Análise limitada a 100 ativos por vez
+5. **Uso**: Apenas educacional, não é recomendação
 
 ## 🎓 Casos de Uso
 
-### 1. Aposentadoria
-**Meta:** R$ 3.000/mês em dividendos
-- Com DY de 6%, precisa investir ~R$ 600.000
-- Use o otimizador para distribuir o capital
-- Valide com simulação histórica
+### 1. Aposentadoria - Renda Mensal
+**Meta:** R$ 5.000/mês em dividendos
+- Selecione: Ações + FIIs
+- DY alvo: 7%
+- Capital necessário: ~R$ 857.000
+- Use calendário para ver distribuição mensal
 
-### 2. Renda Extra
-**Meta:** R$ 500/mês em dividendos
-- Com DY de 6%, precisa investir ~R$ 100.000
-- Diversifique em 5-8 empresas
-- Acompanhe o calendário mensal
+### 2. Diversificação Global
+**Meta:** Exposição internacional + renda local
+- Selecione: Ações + FIIs + BDRs
+- Mix 40% Ações BR / 30% FIIs / 30% BDRs
+- Proteção cambial via BDRs
+- Dividendos em múltiplas moedas
 
-### 3. Acumulação
-**Meta:** Reinvestir dividendos para crescer patrimônio
-- Foque em ações com CAGR alto
-- Use filtro de consistência > 80%
-- Monitore crescimento anual
+### 3. Estratégia Passiva
+**Meta:** Investir sem gestão ativa
+- Selecione: ETFs
+- BOVA11 (mercado geral)
+- DIVO11 (dividendos)
+- Rebalanceamento automático
+
+### 4. Renda Mensal Alta
+**Meta:** Maximizar fluxo de caixa mensal
+- Selecione: FIIs
+- Foco em DY > 10%
+- Diversificação por tipo (lajes, shoppings, logística)
+- Pagamentos mensais garantidos
+
+## 🚀 Próximas Melhorias
+
+- [ ] Integração com API da B3 (dados oficiais)
+- [ ] Notificações de pagamento de dividendos
+- [ ] Cálculo automático de impostos
+- [ ] Comparação com benchmarks (CDI, IPCA, Ibovespa)
+- [ ] Análise fundamentalista (ROE, Dívida, etc.)
+- [ ] Rebalanceamento automático sugerido
+- [ ] Exportação para Excel com fórmulas
+- [ ] Integração com corretoras (CEI)
 
 ## 🤝 Contribuições
 
 Sugestões e melhorias são bem-vindas! Abra uma issue no GitHub.
+
+## 📞 Repositório
+
+**GitHub:** https://github.com/cgscacau/dividendos
 
 ## 📄 Licença
 
@@ -203,6 +382,15 @@ Projeto educacional. Use por sua conta e risco.
 
 ---
 
-**Desenvolvido para investidores que buscam renda passiva através de dividendos** 💰
+**Desenvolvido para investidores que buscam renda passiva através de dividendos na B3** 💰
 
 *Última atualização: 30/12/2025*
+
+---
+
+## 🎯 Comece Agora!
+
+1. **Acesse:** https://8501-itf3xysvgh1hx79t5ys0g-c81df28e.sandbox.novita.ai
+2. **Selecione** seus segmentos na barra lateral
+3. **Clique** em "Analisar Ativos"
+4. **Explore** os melhores ativos da B3!
