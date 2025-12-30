@@ -247,13 +247,24 @@ def create_dividend_calendar(portfolio_df):
 st.title("🎯 Otimizador de Carteira de Dividendos - B3 Completa")
 
 # Banner de melhorias
-st.success("""
-🚀 **NOVO! Versão 2.0 com Melhorias de Performance**
-- ⚡ **5-10x mais rápido**: Análise paralela de ativos
-- ✅ **Validação robusta**: Remove outliers automaticamente (DY > 40%)
-- 📝 **Logging estruturado**: Melhor rastreamento e debugging
-- 🏗️ **Arquitetura modular**: Código mais manutenível
-""")
+if USING_NEW_MODULES:
+    st.success("""
+    🚀 **NOVO! Versão 2.0 com Melhorias de Performance ATIVADA** ✅
+    - ⚡ **5-10x mais rápido**: Análise paralela de ativos
+    - ✅ **Validação robusta**: Remove outliers automaticamente (DY > 40%)
+    - 📝 **Logging estruturado**: Melhor rastreamento e debugging
+    - 🏗️ **Arquitetura modular**: Código mais manutenível
+    
+    📊 **Configuração atual:** {workers} workers paralelos | Cache: {cache}min
+    """.format(
+        workers=config.MAX_WORKERS if USING_NEW_MODULES else "N/A",
+        cache=config.CACHE_TTL_SHORT//60 if USING_NEW_MODULES else "N/A"
+    ))
+else:
+    st.warning("""
+    ⚠️ **Executando em modo legado** 
+    Os novos módulos não foram carregados. Algumas funcionalidades podem estar limitadas.
+    """)
 
 st.markdown("""
 Este aplicativo analisa **ações, FIIs, BDRs e ETFs** negociados na B3 e cria um portfólio otimizado 
@@ -297,11 +308,16 @@ tab1, tab2, tab3 = st.tabs(["📊 Ranking de Ativos", "💼 Otimizador de Portf�
 with tab1:
     st.header("📊 Ranking dos Melhores Ativos para Dividendos")
     
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
         categorias_str = ", ".join(categorias_ativas) if categorias_ativas else "Nenhum"
         st.info(f"🔍 Segmentos selecionados: **{categorias_str}**")
     with col2:
+        if USING_NEW_MODULES:
+            st.success("✅ Modo v2.0")
+        else:
+            st.warning("⚠️ Modo legado")
+    with col3:
         if st.button("🔄 Limpar Cache", type="secondary"):
             st.cache_data.clear()
             st.success("Cache limpo!")
