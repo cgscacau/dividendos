@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import numpy as np
 from collections import defaultdict
 import calendar
+from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
 
 # --- Configurações da Página Streamlit ---
 st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Dividendos")
@@ -14,115 +15,22 @@ st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Div
 # --- Lista Curada de Tickers da B3 ---
 
 def get_all_b3_tickers():
-    """Retorna lista curada de tickers da B3 por categoria."""
+    """Retorna lista expandida de tickers da B3 por categoria."""
     
-    # AÇÕES - tickers reais mais negociados
-    acoes = [
-        # Bancos
-        "ITUB4.SA", "BBDC4.SA", "BBAS3.SA", "SANB11.SA", "BPAC11.SA",
-        # Petróleo/Energia
-        "PETR3.SA", "PETR4.SA", "PRIO3.SA", "RECV3.SA", "RRRP3.SA",
-        # Mineração
-        "VALE3.SA", "BRAP4.SA", "GOAU4.SA", "CMIN3.SA", "GGBR4.SA", "USIM5.SA", "CSNA3.SA",
-        # Elétricas
-        "TAEE11.SA", "EGIE3.SA", "CPLE6.SA", "CMIG4.SA", "ENBR3.SA", "NEOE3.SA", "ENEV3.SA",
-        # Saneamento
-        "SAPR11.SA", "SBSP3.SA", "CSMG3.SA",
-        # Telecom
-        "TIMS3.SA", "VIVT3.SA",
-        # Seguradoras
-        "BBSE3.SA", "PSSA3.SA",
-        # Varejo
-        "LREN3.SA", "MGLU3.SA", "VVAR3.SA", "PETZ3.SA", "SOMA3.SA", "GUAR3.SA", "VIIA3.SA",
-        # Consumo
-        "ABEV3.SA", "JBSS3.SA", "BEEF3.SA", "SMTO3.SA",
-        # Industrial
-        "WEGE3.SA", "KLBN11.SA", "SUZB3.SA", "RAIL3.SA",
-        # Construção
-        "CYRE3.SA", "MRVE3.SA", "EZTC3.SA", "TEND3.SA", "JHSF3.SA",
-        # Saúde
-        "RDOR3.SA", "FLRY3.SA", "HAPV3.SA", "QUAL3.SA",
-        # Educação
-        "COGN3.SA", "YDUQ3.SA", "ANIM3.SA",
-        # Logística
-        "CCRO3.SA", "ECOR3.SA", "RADL3.SA",
-        # Holdings
-        "ITSA4.SA", "TRPL4.SA", "MULT3.SA",
-        # Outras
-        "B3SA3.SA", "CIEL3.SA", "LWSA3.SA", "POSI3.SA", "AZUL4.SA", "EMBR3.SA",
-        "UGPA3.SA", "TOTS3.SA", "RENT3.SA", "ALSO3.SA", "ALPA4.SA", "CSAN3.SA",
-        "EQTL3.SA", "CVCB3.SA", "POMO4.SA", "IRBR3.SA",
-    ]
-    
-    # FIIs - principais fundos imobiliários  
-    fiis = [
-        # Lajes Corporativas
-        "HGLG11.SA", "BTLG11.SA", "XPLG11.SA", "KNCR11.SA", "GGRC11.SA",
-        # Shoppings
-        "MALL11.SA", "XPML11.SA", "VISC11.SA", "HSML11.SA", "HSLG11.SA",
-        # Logística
-        "HGRU11.SA", "HGRE11.SA", "VILG11.SA", "TRXF11.SA", "TGAR11.SA",
-        # Híbridos
-        "MXRF11.SA", "KNRI11.SA", "HGPO11.SA", "KNHY11.SA", "KNIP11.SA",
-        # Recebíveis
-        "RZTR11.SA", "BCFF11.SA", "RBRR11.SA", "RBRF11.SA", "KFOF11.SA",
-        # Títulos
-        "PVBI11.SA", "IRDM11.SA", "BCRI11.SA", "RECT11.SA",
-        # Residencial
-        "HABT11.SA", "VINO11.SA", "RBVA11.SA", "VCJR11.SA", "RBRY11.SA",
-        # Outros
-        "JSRE11.SA", "ALZR11.SA", "MCHY11.SA", "DEVA11.SA", "CPTS11.SA",
-        "HTMX11.SA", "BRCR11.SA", "XPCI11.SA", "GAME11.SA", "BTAL11.SA",
-        "GALG11.SA", "GARE11.SA", "TRBL11.SA", "PATL11.SA", "PORD11.SA",
-        "PLRI11.SA", "BPFF11.SA", "SARE11.SA", "VRTA11.SA",
-    ]
-    
-    # BDRs - ações internacionais
-    bdrs = [
-        # Tech Giants
-        "AAPL34.SA", "MSFT34.SA", "AMZO34.SA", "GOGL34.SA", "META34.SA",
-        "NVDC34.SA", "TSLA34.SA",
-        # Streaming/Media
-        "NFLX34.SA", "DISB34.SA", "SPOT34.SA",
-        # Finance/Payments
-        "V1SA34.SA", "PYPL34.SA", "M1STR34.SA",
-        # E-commerce/Apps
-        "UBER34.SA", "AIRB34.SA",
-        # Consumer Brands
-        "NIKE34.SA", "COCA34.SA", "PEPB34.SA", "S1BX34.SA",
-        # Industrial
-        "BOEI34.SA", "C1AT34.SA",
-        # Healthcare/Pharma
-        "PFIZ34.SA", "JNJ34.SA", "ABBV34.SA",
-        # Retail
-        "W1MT34.SA", "HOME34.SA", "COST34.SA",
-        # Asian Tech
-        "BABA34.SA", "BIDU34.SA", "TCEHY34.SA",
-        # European
-        "ASML34.SA", "NESN34.SA", "LVMH34.SA", "SAP34.SA",
-        # Others
-        "INTC34.SA", "CSCO34.SA", "ADBE34.SA", "UPS34.SA",
-    ]
-    
-    # ETFs - fundos de índice
-    etfs = [
-        "BOVA11.SA",  # Ibovespa
-        "SMAL11.SA",  # Small Caps
-        "IVVB11.SA",  # S&P 500
-        "SPXI11.SA",  # S&P 500
-        "DIVO11.SA",  # Dividendos
-        "MATB11.SA",  # Materiais Básicos
-        "PIBB11.SA",  # IBrX-50
-        "ISUS11.SA",  # Sustentabilidade
-        "FIND11.SA",  # Financeiro
-        "BOVX11.SA",  # Ibovespa
-        "GOVE11.SA",  # Governança
-        "BRAX11.SA",  # Brasil
-        "XBOV11.SA",  # Ibovespa
-        "BOVV11.SA",  # Ibovespa Value
-    ]
-    
-    return acoes + fiis + bdrs + etfs
+    # Importar listas expandidas
+    try:
+        from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
+        acoes = get_acoes_b3_completas()
+        fiis = get_fiis_completos()
+    except:
+        # Fallback para lista básica se importação falhar
+        acoes = [
+            "ITUB4.SA", "BBDC4.SA", "BBAS3.SA", "PETR3.SA", "PETR4.SA", 
+            "VALE3.SA", "WEGE3.SA", "LREN3.SA", "ABEV3.SA", "TAEE11.SA",
+        ]
+        fiis = [
+            "HGLG11.SA", "VISC11.SA", "MXRF11.SA", "KNRI11.SA",
+        ]
 
 def categorize_ticker(ticker):
     """Categoriza o ticker em: Ação, FII, BDR ou ETF."""
@@ -514,7 +422,7 @@ with tab1:
         
         # Filtros adicionais
         st.subheader("🔍 Filtros Adicionais")
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             categorias_disponiveis = ['Todos'] + sorted(df_ranking['categoria'].unique().tolist())
@@ -528,6 +436,10 @@ with tab1:
             dy_minimo = st.slider("DY Mínimo (12M)", 0.0, 15.0, 0.0, 0.5)
         
         with col4:
+            dy_maximo = st.slider("DY Máximo (12M)", 0.0, 50.0, 40.0, 1.0, 
+                                 help="Filtra outliers com DY muito alto")
+        
+        with col5:
             consistencia_minima = st.slider("Consistência Mínima (%)", 0, 100, 0, 10)
         
         # Aplicar filtros
@@ -537,6 +449,7 @@ with tab1:
         if setor_filtro != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['setor'] == setor_filtro]
         df_filtrado = df_filtrado[df_filtrado['dy_12m'] >= dy_minimo]
+        df_filtrado = df_filtrado[df_filtrado['dy_12m'] <= dy_maximo]  # NOVO: Filtro máximo
         df_filtrado = df_filtrado[df_filtrado['consistencia'] >= consistencia_minima]
         df_filtrado = df_filtrado.sort_values('score', ascending=False)
         
