@@ -4,6 +4,8 @@
 
 **📱 Aplicativo Online:** https://8501-itf3xysvgh1hx79t5ys0g-c81df28e.sandbox.novita.ai
 
+**🔥 Última Atualização:** Correção crítica aplicada - aplicativo funcionando 100%!
+
 ## ✨ O Que Este Aplicativo Faz?
 
 Este é um **otimizador completo de carteira de dividendos** que analisa **TODA a B3** - incluindo **Ações, FIIs, BDRs e ETFs** - e ajuda investidores brasileiros a:
@@ -12,6 +14,25 @@ Este é um **otimizador completo de carteira de dividendos** que analisa **TODA 
 2. **💼 Criar Portfólio Otimizado** - Define quantos ativos comprar baseado no seu capital
 3. **📅 Planejar Fluxo de Caixa** - Mostra quanto você receberá por mês em dividendos
 4. **📈 Validar Estratégia** - Simula o desempenho real do portfólio nos últimos 5 anos
+
+## 🔧 Melhorias Mais Recentes
+
+### ✅ Correção Crítica Aplicada (Commit 6616f6b)
+- **Problema resolvido:** Erro `TypeError: 'NoneType' object is not iterable` corrigido
+- **Solução:** Adicionado `return` statement na função `get_all_b3_tickers()`
+- **Melhoria:** Agora inclui automaticamente BDRs e ETFs na lista de análise
+- **Status:** ✅ Aplicativo 100% funcional
+
+### 🆕 Lista Expandida de Ativos (350+ tickers)
+- **200+ Ações** - Todos os setores da B3
+- **100+ FIIs** - Diferentes tipos (lajes, shoppings, logística, recebíveis)
+- **30+ BDRs** - Empresas internacionais (Tech, Financeiro, Consumo)
+- **14 ETFs** - Índices diversos
+
+### 🎯 Filtro de DY Máximo
+- **Novo controle:** DY Máximo (padrão 40%)
+- **Objetivo:** Remover outliers e dividendos não recorrentes
+- **Benefício:** Evita ações com DY > 40% que podem ter problemas (ex: dívida, dados incorretos)
 
 ## 🆕 NOVIDADE: Análise Completa da B3
 
