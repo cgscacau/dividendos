@@ -35,7 +35,7 @@ def get_all_b3_tickers():
         # Varejo
         "LREN3.SA", "MGLU3.SA", "VVAR3.SA", "PETZ3.SA", "SOMA3.SA", "GUAR3.SA", "VIIA3.SA",
         # Consumo
-        "ABEV3.SA", "BRFS3.SA", "MRFG3.SA", "JBSS3.SA", "BEEF3.SA", "SMTO3.SA",
+        "ABEV3.SA", "JBSS3.SA", "BEEF3.SA", "SMTO3.SA",
         # Industrial
         "WEGE3.SA", "KLBN11.SA", "SUZB3.SA", "RAIL3.SA",
         # Construção
@@ -67,7 +67,7 @@ def get_all_b3_tickers():
         # Recebíveis
         "RZTR11.SA", "BCFF11.SA", "RBRR11.SA", "RBRF11.SA", "KFOF11.SA",
         # Títulos
-        "PVBI11.SA", "IRDM11.SA", "BCRI11.SA", "CVBI11.SA", "RECT11.SA",
+        "PVBI11.SA", "IRDM11.SA", "BCRI11.SA", "RECT11.SA",
         # Residencial
         "HABT11.SA", "VINO11.SA", "RBVA11.SA", "VCJR11.SA", "RBRY11.SA",
         # Outros
@@ -558,7 +558,7 @@ with tab1:
                                    'Consistência (%)': '{:.1f}%',
                                    'CAGR Div (%)': '{:.2f}%',
                                    'Score': '{:.2f}'}),
-            use_container_width=True,
+            width="stretch",
             height=400
         )
         
@@ -574,13 +574,13 @@ with tab1:
                            color='categoria', 
                            color_discrete_map={'Ação': '#1f77b4', 'FII': '#ff7f0e', 
                                               'BDR': '#2ca02c', 'ETF': '#d62728'})
-            st.plotly_chart(fig_dy, use_container_width=True)
+            st.plotly_chart(fig_dy, width="stretch")
         
         with col2:
             fig_cat = px.pie(df_filtrado, names='categoria', title='Distribuição por Categoria',
                             color_discrete_map={'Ação': '#1f77b4', 'FII': '#ff7f0e', 
                                               'BDR': '#2ca02c', 'ETF': '#d62728'})
-            st.plotly_chart(fig_cat, use_container_width=True)
+            st.plotly_chart(fig_cat, width="stretch")
         
         # Análise por categoria
         st.subheader("📦 Análise por Categoria")
@@ -593,7 +593,7 @@ with tab1:
         df_categoria.columns = ['DY Médio (%)', 'Consistência Média (%)', 'Score Médio', 'Qtd. Ativos']
         df_categoria = df_categoria.sort_values('Score Médio', ascending=False)
         
-        st.dataframe(df_categoria, use_container_width=True)
+        st.dataframe(df_categoria, width="stretch")
 
 # ===== TAB 2: OTIMIZADOR DE PORTFÓLIO =====
 with tab2:
@@ -636,22 +636,29 @@ with tab2:
             )
         
         # Botão para otimizar
-        if st.button("🚀 Otimizar Portfólio", type="primary"):
+        if st.button("🚀 Otimizar Portfólio", type="primary", key="btn_otimizar"):
             with st.spinner("Otimizando portfólio..."):
                 # Filtrar ações com DY mínimo
                 df_elegivel = df_ranking[df_ranking['dy_12m'] >= dy_minimo_port].copy()
                 
+                st.info(f"🔍 Debug: {len(df_ranking)} ativos no ranking, {len(df_elegivel)} com DY >= {dy_minimo_port}%")
+                
                 if df_elegivel.empty:
                     st.error("Nenhum ativo encontrado com o DY mínimo especificado. Tente reduzir o valor.")
                 else:
+                    st.info(f"💰 Otimizando com capital de R$ {capital_total:,.2f} e lote mínimo de {lote_minimo}")
+                    
                     # Otimizar
                     portfolio = optimize_portfolio(df_elegivel, capital_total, lote_minimo)
                     
                     if portfolio is not None and not portfolio.empty:
                         st.session_state['portfolio_otimizado'] = portfolio
-                        st.success("✅ Portfólio otimizado com sucesso!")
+                        st.session_state['otimizacao_completa'] = True
+                        st.success(f"✅ Portfólio otimizado com sucesso! {len(portfolio)} ativos selecionados.")
+                        st.rerun()
                     else:
-                        st.error("Não foi possível criar um portfólio com os parâmetros especificados. Tente aumentar o capital ou reduzir o lote mínimo.")
+                        st.error("❌ Não foi possível criar um portfólio com os parâmetros especificados.")
+                        st.warning("💡 Dicas: Tente aumentar o capital ou reduzir o lote mínimo.")
         
         # Exibir portfólio otimizado
         if 'portfolio_otimizado' in st.session_state:
@@ -689,7 +696,7 @@ with tab2:
                     'DY 12M (%)': '{:.2f}%',
                     'Dividendos/Ano (R$)': 'R$ {:.2f}'
                 }).background_gradient(subset=['% Carteira'], cmap='Blues'),
-                use_container_width=True
+                width="stretch"
             )
             
             # Gráficos
@@ -698,7 +705,7 @@ with tab2:
             with col1:
                 fig_pizza = px.pie(df_port_display, values='Valor Investido (R$)', names='Ticker',
                                    title='Distribuição do Capital por Ativo')
-                st.plotly_chart(fig_pizza, use_container_width=True)
+                st.plotly_chart(fig_pizza, width="stretch")
             
             with col2:
                 fig_cat_port = px.pie(df_port_display, values='Valor Investido (R$)', names='Categoria',
@@ -706,7 +713,7 @@ with tab2:
                                       color='Categoria',
                                       color_discrete_map={'Ação': '#1f77b4', 'FII': '#ff7f0e', 
                                                          'BDR': '#2ca02c', 'ETF': '#d62728'})
-                st.plotly_chart(fig_cat_port, use_container_width=True)
+                st.plotly_chart(fig_cat_port, width="stretch")
             
             # Calendário de dividendos
             st.subheader("📅 Calendário Estimado de Dividendos")
@@ -720,7 +727,7 @@ with tab2:
                                        labels={'valor_estimado': 'Valor (R$)', 'mes': 'Mês'},
                                        text='valor_estimado')
                 fig_calendario.update_traces(texttemplate='R$ %{text:.0f}', textposition='outside')
-                st.plotly_chart(fig_calendario, use_container_width=True)
+                st.plotly_chart(fig_calendario, width="stretch")
                 
                 # Tabela detalhada
                 with st.expander("📊 Detalhes Mensais"):
@@ -728,7 +735,7 @@ with tab2:
                     df_cal_display.columns = ['Mês', 'Valor Estimado (R$)', 'Ativos Pagantes']
                     st.dataframe(
                         df_cal_display.style.format({'Valor Estimado (R$)': 'R$ {:.2f}'}),
-                        use_container_width=True
+                        width="stretch"
                     )
             else:
                 st.warning("Não foi possível gerar o calendário de dividendos")
@@ -788,7 +795,7 @@ with tab3:
                                labels={'dividendos': 'Dividendos (R$)', 'ano': 'Ano'},
                                text='dividendos')
             fig_annual.update_traces(texttemplate='R$ %{text:,.0f}', textposition='outside')
-            st.plotly_chart(fig_annual, use_container_width=True)
+            st.plotly_chart(fig_annual, width="stretch")
             
             # Gráfico mensal
             st.subheader("📈 Evolução Mensal dos Dividendos")
@@ -799,7 +806,7 @@ with tab3:
                                  annotation_text=f"Média: R$ {media_mensal:.2f}")
             fig_monthly.update_layout(title='Dividendos Mensais Históricos',
                                      xaxis_title='Mês', yaxis_title='Dividendos (R$)')
-            st.plotly_chart(fig_monthly, use_container_width=True)
+            st.plotly_chart(fig_monthly, width="stretch")
             
             # Análise estatística
             st.subheader("📊 Análise Estatística")
@@ -821,7 +828,7 @@ with tab3:
                                 stats_annual['max']
                             ]
                         }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
-                        use_container_width=True
+                        width="stretch"
                     )
             
             with col2:
@@ -839,7 +846,7 @@ with tab3:
                                 stats_monthly['max']
                             ]
                         }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
-                        use_container_width=True
+                        width="stretch"
                     )
             
             # Análise de rentabilidade
