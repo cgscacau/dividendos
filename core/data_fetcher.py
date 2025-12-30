@@ -5,9 +5,9 @@ Módulo para busca de dados financeiros do yfinance com cache e rate limiting.
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
-import streamlit as st
 from typing import Optional, Dict, Any
 import time
+from functools import lru_cache
 
 from config.settings import config
 from utils.helpers import rate_limit, retry, timer
@@ -15,6 +15,22 @@ from utils.validators import (
     validate_ticker, validate_price, validate_dividends_data
 )
 from utils.logger import setup_logger, log_api_request, log_data_quality_issue
+
+# Tentar importar streamlit, se não existir usar cache Python padrão
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    HAS_STREAMLIT = False
+    # Criar decorators dummy para quando não tiver streamlit
+    class st:
+        @staticmethod
+        def cache_resource(ttl=None):
+            return lru_cache(maxsize=128)
+        
+        @staticmethod
+        def cache_data(ttl=None):
+            return lru_cache(maxsize=128)
 
 logger = setup_logger(__name__)
 

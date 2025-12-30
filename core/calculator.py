@@ -7,14 +7,13 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import streamlit as st
+import time
 
 from config.settings import config
 from core.data_fetcher import data_fetcher
 from utils.helpers import categorize_ticker, calculate_score
 from utils.validators import validate_dividend_yield, validate_cagr
 from utils.logger import setup_logger, log_performance
-import time
 
 logger = setup_logger(__name__)
 

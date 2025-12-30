@@ -8,20 +8,37 @@ import numpy as np
 from collections import defaultdict
 import calendar
 import time
+import sys
+import os
+
+# Adicionar diretório atual ao path para imports funcionarem
+if os.path.dirname(__file__) not in sys.path:
+    sys.path.insert(0, os.path.dirname(__file__))
 
 # Importar novos módulos da arquitetura refatorada
-from config.settings import config, get_category_color
-from config.constants import get_acoes_b3_completas, get_fiis_completos
-from core.calculator import calculate_dividend_metrics, analyze_stocks_parallel
-from core.optimizer import optimize_portfolio
-from core.data_fetcher import data_fetcher
-from utils.helpers import categorize_ticker, get_ticker_list_by_categories, format_time_elapsed
-from utils.validators import validate_dividend_yield, validate_portfolio_capital
-from utils.formatters import format_currency, format_percentage, create_summary_text
-from utils.logger import setup_logger, log_performance
-
-# Configurar logger
-logger = setup_logger('streamlit_app')
+try:
+    from config.settings import config, get_category_color
+    from config.constants import get_acoes_b3_completas, get_fiis_completos
+    from core.calculator import calculate_dividend_metrics, analyze_stocks_parallel
+    from core.optimizer import optimize_portfolio
+    from core.data_fetcher import data_fetcher
+    from utils.helpers import categorize_ticker, get_ticker_list_by_categories, format_time_elapsed
+    from utils.validators import validate_dividend_yield, validate_portfolio_capital
+    from utils.formatters import format_currency, format_percentage, create_summary_text
+    from utils.logger import setup_logger, log_performance
+    
+    # Configurar logger
+    logger = setup_logger('streamlit_app')
+    USING_NEW_MODULES = True
+    logger.info("✅ Novos módulos carregados com sucesso!")
+    
+except Exception as e:
+    st.error(f"⚠️ Erro ao carregar novos módulos: {str(e)}")
+    st.error(f"📂 Diretório atual: {os.getcwd()}")
+    st.error(f"🐍 Python path: {sys.path[:3]}")
+    USING_NEW_MODULES = False
+    # Fallback para imports antigos se necessário
+    from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
 
 # --- Configurações da Página Streamlit ---
 st.set_page_config(
