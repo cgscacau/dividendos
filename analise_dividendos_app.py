@@ -558,7 +558,7 @@ with tab1:
                                    'Consistência (%)': '{:.1f}%',
                                    'CAGR Div (%)': '{:.2f}%',
                                    'Score': '{:.2f}'}),
-            width=None,
+            use_container_width=True,
             height=400
         )
         
@@ -593,7 +593,7 @@ with tab1:
         df_categoria.columns = ['DY Médio (%)', 'Consistência Média (%)', 'Score Médio', 'Qtd. Ativos']
         df_categoria = df_categoria.sort_values('Score Médio', ascending=False)
         
-        st.dataframe(df_categoria, width=None)
+        st.dataframe(df_categoria, use_container_width=True)
 
 # ===== TAB 2: OTIMIZADOR DE PORTFÓLIO =====
 with tab2:
@@ -689,7 +689,7 @@ with tab2:
                     'DY 12M (%)': '{:.2f}%',
                     'Dividendos/Ano (R$)': 'R$ {:.2f}'
                 }).background_gradient(subset=['% Carteira'], cmap='Blues'),
-                width=None
+                use_container_width=True
             )
             
             # Gráficos
@@ -728,7 +728,7 @@ with tab2:
                     df_cal_display.columns = ['Mês', 'Valor Estimado (R$)', 'Ativos Pagantes']
                     st.dataframe(
                         df_cal_display.style.format({'Valor Estimado (R$)': 'R$ {:.2f}'}),
-                        width=None
+                        use_container_width=True
                     )
             else:
                 st.warning("Não foi possível gerar o calendário de dividendos")
@@ -821,7 +821,7 @@ with tab3:
                                 stats_annual['max']
                             ]
                         }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
-                        width=None
+                        use_container_width=True
                     )
             
             with col2:
@@ -839,7 +839,7 @@ with tab3:
                                 stats_monthly['max']
                             ]
                         }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
-                        width=None
+                        use_container_width=True
                     )
             
             # Análise de rentabilidade
