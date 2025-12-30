@@ -7,24 +7,130 @@ from datetime import datetime, timedelta
 import numpy as np
 from collections import defaultdict
 import calendar
+import requests
+from bs4 import BeautifulSoup
+import time
 
 # --- Configurações da Página Streamlit ---
 st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Dividendos")
 
-# --- Lista de Ações Brasileiras Recomendadas para Dividendos ---
-ACOES_DIVIDENDOS_BR = {
-    "Bancos": ["ITUB4.SA", "BBDC4.SA", "BBAS3.SA", "SANB11.SA"],
-    "Energia": ["TAEE11.SA", "EGIE3.SA", "CPLE6.SA", "CMIG4.SA", "ENBR3.SA"],
-    "Saneamento": ["SAPR11.SA", "SBSP3.SA", "CSMG3.SA"],
-    "Telecomunicações": ["TIMS3.SA", "VIVT3.SA"],
-    "Seguros": ["BBSE3.SA", "PSSA3.SA"],
-    "Petróleo": ["PETR4.SA", "PRIO3.SA"],
-    "Imobiliário": ["TRPL4.SA", "MULT3.SA"],
-    "Varejo": ["LREN3.SA"],
-    "Holdings": ["ITSA4.SA"]
-}
+# --- Funções para Buscar Tickers da B3 ---
 
-# --- Funções Auxiliares ---
+@st.cache_data(ttl=86400)  # Cache por 24 horas
+def get_all_b3_tickers():
+    """Busca todos os tickers negociados na B3 com volume nos últimos 2 meses."""
+    
+    tickers_data = []
+    
+    # Lista base de ações principais da B3 (serão verificadas)
+    base_tickers = []
+    
+    # Gerar sufixos comuns de ações brasileiras
+    for num in range(3, 12):  # 3 a 11
+        base_tickers.extend([
+            f"PETR{num}", f"VALE{num}", f"ITUB{num}", f"BBDC{num}", f"BBAS{num}",
+            f"ABEV{num}", f"WEGE{num}", f"RENT{num}", f"MGLU{num}", f"VVAR{num}",
+            f"EGIE{num}", f"CPLE{num}", f"TAEE{num}", f"SAPR{num}", f"SBSP{num}",
+            f"CMIG{num}", f"ENBR{num}", f"TIMS{num}", f"VIVT{num}", f"ITSA{num}",
+            f"BBSE{num}", f"PSSA{num}", f"PRIO{num}", f"TRPL{num}", f"MULT{num}",
+            f"LREN{num}", f"SANB{num}", f"RADL{num}", f"RRRP{num}", f"CSAN{num}",
+            f"SUZB{num}", f"RAIL{num}", f"UGPA{num}", f"HAPV{num}", f"BEEF{num}",
+            f"BRFS{num}", f"MRFG{num}", f"JBSS{num}", f"EQTL{num}", f"TOTS{num}",
+            f"BRAP{num}", f"GOAU{num}", f"CMIN{num}", f"GGBR{num}", f"USIM{num}",
+            f"CSNA{num}", f"CIEL{num}", f"RDOR{num}", f"HAPV{num}", f"FLRY{num}",
+            f"QUAL{num}", f"PETZ{num}", f"YDUQ{num}", f"COGN{num}", f"ANIM{num}",
+            f"LWSA{num}", f"SOMA{num}", f"GUAR{num}", f"CVCB{num}", f"AZUL{num}",
+            f"EMBR{num}", f"ALSO{num}", f"ALPA{num}", f"RECV{num}", f"CYRE{num}",
+            f"MRVE{num}", f"EZTC{num}", f"JHSF{num}", f"TEND{num}", f"EVEN{num}",
+            f"KLBN{num}", f"SUZB{num}", f"RANI{num}", f"CRFB{num}", f"KEPL{num}",
+            f"BRKM{num}", f"BRML{num}", f"POMO{num}", f"GRND{num}", f"IGTI{num}",
+            f"POSI{num}", f"SHOW{num}", f"MOVI{num}", f"NTCO{num}", f"TRAD{num}",
+            f"B3SA{num}", f"CIEL{num}", f"BPAC{num}", f"PINE{num}", f"IRBR{num}",
+            f"BBDC{num}", f"CSMG{num}", f"CESP{num}", f"ELPL{num}", f"NEOE{num}",
+            f"ENEV{num}", f"MEGA{num}", f"AURE{num}", f"CCRO{num}", f"ECOR{num}",
+        ])
+    
+    # Adicionar FIIs populares
+    fiis = [
+        "HGLG11", "VISC11", "BTLG11", "XPLG11", "MXRF11", "KNRI11", "KNCR11",
+        "HGRU11", "PVBI11", "RZTR11", "BCFF11", "RBRR11", "RBRP11", "IRDM11",
+        "MALL11", "XPML11", "HGRE11", "HGPO11", "BCRI11", "KNIP11", "KNHY11",
+        "VILG11", "VGIR11", "JSRE11", "ALZR11", "RBRF11", "MCHY11", "TGAR11",
+        "CPTS11", "DEVA11", "RBVA11", "RECT11", "CVBI11", "TRXF11", "VCJR11",
+        "VINO11", "HSML11", "HSLG11", "HABT11", "HTMX11", "RBRY11", "BRCR11",
+        "XPCI11", "GAME11", "KFOF11", "BTAL11", "GALG11", "GARE11", "TRBL11",
+        "PATL11", "PORD11", "PLRI11", "GGRC11", "BPFF11", "SARE11", "VRTA11",
+    ]
+    base_tickers.extend(fiis)
+    
+    # Adicionar BDRs populares (sem números, apenas 34)
+    bdrs = [
+        "AAPL34", "MSFT34", "AMZO34", "GOGL34", "TSLA34", "META34", "NVDC34",
+        "NFLX34", "ADBE34", "PYPL34", "INTC34", "CSCO34", "CMCSA34", "PEP34",
+        "COCA34", "DISB34", "NIKE34", "V1SA34", "M1CDONALDS34", "BOEI34",
+        "W1MT34", "HOME34", "PFIZ34", "MRNA34", "JNJ34", "UPS34", "STARBUCKS34",
+        "MBLY34", "UBER34", "AIRB34", "SNAP34", "SPOT34", "SQ34", "TWTR34",
+        "BABA34", "BIDU34", "JD34", "TCEHY34", "S1MH34", "ASML34", "SHEL34",
+        "ITLR34", "BDORY34", "LVMH34", "NESN34", "RHHBY34", "SAP34", "SONY34",
+    ]
+    base_tickers.extend(bdrs)
+    
+    # Adicionar ETFs
+    etfs = [
+        "BOVA11", "SMAL11", "IVVB11", "SPXI11", "MATB11", "PIBB11", "ISUS11",
+        "FIND11", "DIVO11", "BOVX11", "GOVE11", "BRAX11", "XBOV11", "BOVV11",
+    ]
+    base_tickers.extend(etfs)
+    
+    return [ticker + ".SA" if not ticker.endswith(".SA") else ticker for ticker in base_tickers]
+
+def categorize_ticker(ticker):
+    """Categoriza o ticker em: Ação, FII, BDR ou ETF."""
+    ticker_clean = ticker.replace(".SA", "").upper()
+    
+    # FIIs terminam em 11
+    if ticker_clean.endswith("11"):
+        # Verificar se é ETF
+        etfs_keywords = ["BOVA", "SMAL", "IVVB", "SPXI", "MATB", "PIBB", "ISUS", 
+                        "FIND", "DIVO", "BOVX", "GOVE", "BRAX", "XBOV", "BOVV"]
+        if any(etf in ticker_clean for etf in etfs_keywords):
+            return "ETF"
+        return "FII"
+    
+    # BDRs terminam em 34 ou 35
+    if ticker_clean.endswith("34") or ticker_clean.endswith("35"):
+        return "BDR"
+    
+    # ETFs específicos
+    etfs_exact = ["BOVA11", "SMAL11", "IVVB11", "SPXI11", "MATB11", "PIBB11"]
+    if ticker_clean in etfs_exact:
+        return "ETF"
+    
+    # Default: Ação
+    return "Ação"
+
+@st.cache_data(ttl=3600)
+def check_ticker_active(ticker):
+    """Verifica se o ticker tem negociação nos últimos 60 dias."""
+    try:
+        stock = yf.Ticker(ticker)
+        end_date = datetime.today()
+        start_date = end_date - timedelta(days=60)
+        hist = stock.history(start=start_date, end=end_date)
+        
+        if hist.empty or len(hist) < 5:  # Pelo menos 5 dias de negociação
+            return False
+        
+        # Verificar se teve volume significativo
+        avg_volume = hist['Volume'].mean()
+        if avg_volume < 1000:  # Volume mínimo
+            return False
+        
+        return True
+    except:
+        return False
+
+# --- Funções Auxiliares (mantidas do código anterior) ---
 
 @st.cache_resource(ttl=1800)
 def get_stock_object_yf(ticker_symbol):
@@ -129,12 +235,16 @@ def calculate_dividend_metrics(ticker_symbol, years=5):
     else:
         cagr = 0
     
+    # Categoria
+    categoria = categorize_ticker(ticker_symbol)
+    
     # Score composto (ponderação: DY 40%, Consistência 30%, Crescimento 30%)
     score = (dy_12m * 0.4) + (consistencia * 0.3) + (max(0, min(cagr, 20)) * 0.3)
     
     return {
         'ticker': ticker_symbol,
         'nome': info['nome_longo'],
+        'categoria': categoria,
         'setor': info['setor'],
         'preco': preco_atual,
         'dy_12m': round(dy_12m, 2),
@@ -146,16 +256,12 @@ def calculate_dividend_metrics(ticker_symbol, years=5):
         'dividends_history': dividends
     }
 
-def analyze_all_stocks(progress_bar=None):
-    """Analisa todas as ações da lista."""
-    all_tickers = []
-    for setor, tickers in ACOES_DIVIDENDOS_BR.items():
-        all_tickers.extend(tickers)
-    
+def analyze_selected_stocks(selected_tickers, progress_bar=None):
+    """Analisa os tickers selecionados."""
     results = []
-    total = len(all_tickers)
+    total = len(selected_tickers)
     
-    for idx, ticker in enumerate(all_tickers):
+    for idx, ticker in enumerate(selected_tickers):
         if progress_bar:
             progress_bar.progress((idx + 1) / total, f"Analisando {ticker}...")
         
@@ -194,7 +300,7 @@ def optimize_portfolio(df_stocks, capital_total, min_acoes_por_empresa=100):
     df_selected['dividendos_anuais_estimados'] = df_selected['valor_investido'] * (df_selected['dy_12m'] / 100)
     df_selected['dividendos_mensais_estimados'] = df_selected['dividendos_anuais_estimados'] / 12
     
-    return df_selected[['ticker', 'nome', 'setor', 'preco', 'quantidade', 'valor_investido', 
+    return df_selected[['ticker', 'nome', 'categoria', 'setor', 'preco', 'quantidade', 'valor_investido', 
                         'percentual_carteira', 'dy_12m', 'dividendos_anuais_estimados', 
                         'dividendos_mensais_estimados', 'score', 'dividends_history']]
 
@@ -289,58 +395,139 @@ def create_dividend_calendar(portfolio_df):
     return pd.DataFrame(monthly_summary)
 
 # --- Interface Principal ---
-st.title("🎯 Otimizador de Carteira de Dividendos")
+st.title("🎯 Otimizador de Carteira de Dividendos - B3 Completa")
 st.markdown("""
-Este aplicativo analisa as melhores ações brasileiras pagadoras de dividendos e cria um portfólio otimizado 
+Este aplicativo analisa **TODAS as ações, FIIs, BDRs e ETFs** negociados na B3 e cria um portfólio otimizado 
 para gerar fluxo de caixa mensal consistente.
 """)
 
-# Criar abas principais
-tab1, tab2, tab3 = st.tabs(["📊 Ranking de Ações", "💼 Otimizador de Portfólio", "📈 Simulação Histórica"])
+# Sidebar com filtros de categoria
+st.sidebar.header("🔍 Filtros de Segmento")
 
-# ===== TAB 1: RANKING DE AÇÕES =====
+# Inicializar session state para checkboxes
+if 'categorias_selecionadas' not in st.session_state:
+    st.session_state.categorias_selecionadas = {
+        'Ação': True,
+        'FII': True,
+        'BDR': False,
+        'ETF': False
+    }
+
+# Checkboxes para categorias
+st.sidebar.markdown("**Selecione os segmentos para análise:**")
+categoria_acao = st.sidebar.checkbox("📈 Ações", value=st.session_state.categorias_selecionadas['Ação'])
+categoria_fii = st.sidebar.checkbox("🏢 FIIs (Fundos Imobiliários)", value=st.session_state.categorias_selecionadas['FII'])
+categoria_bdr = st.sidebar.checkbox("🌎 BDRs (Ações Internacionais)", value=st.session_state.categorias_selecionadas['BDR'])
+categoria_etf = st.sidebar.checkbox("📊 ETFs (Fundos de Índice)", value=st.session_state.categorias_selecionadas['ETF'])
+
+# Atualizar session state
+st.session_state.categorias_selecionadas = {
+    'Ação': categoria_acao,
+    'FII': categoria_fii,
+    'BDR': categoria_bdr,
+    'ETF': categoria_etf
+}
+
+# Verificar se pelo menos uma categoria está selecionada
+categorias_ativas = [k for k, v in st.session_state.categorias_selecionadas.items() if v]
+
+if not categorias_ativas:
+    st.sidebar.warning("⚠️ Selecione pelo menos um segmento!")
+
+# Buscar tickers
+if 'all_tickers' not in st.session_state:
+    with st.spinner("Carregando lista de ativos da B3..."):
+        st.session_state.all_tickers = get_all_b3_tickers()
+
+# Criar abas principais
+tab1, tab2, tab3 = st.tabs(["📊 Ranking de Ativos", "💼 Otimizador de Portfólio", "📈 Simulação Histórica"])
+
+# ===== TAB 1: RANKING DE ATIVOS =====
 with tab1:
-    st.header("📊 Ranking das Melhores Ações para Dividendos")
+    st.header("📊 Ranking dos Melhores Ativos para Dividendos")
     
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.info("Analisando ações com histórico consistente de pagamento de dividendos")
+        categorias_str = ", ".join(categorias_ativas) if categorias_ativas else "Nenhum"
+        st.info(f"🔍 Segmentos selecionados: **{categorias_str}**")
     with col2:
-        if st.button("🔄 Atualizar Ranking", type="primary"):
+        if st.button("🔄 Atualizar Ranking", type="primary", disabled=not categorias_ativas):
             st.cache_data.clear()
     
-    with st.spinner("Analisando ações... Isso pode levar alguns minutos..."):
-        progress_bar = st.progress(0)
-        df_ranking = analyze_all_stocks(progress_bar)
-        progress_bar.empty()
+    if categorias_ativas:
+        if st.button("🚀 Analisar Ativos Selecionados", type="primary"):
+            with st.spinner("Analisando ativos... Isso pode levar alguns minutos..."):
+                # Filtrar tickers por categoria
+                all_tickers = st.session_state.all_tickers
+                filtered_tickers = []
+                
+                progress_bar_filter = st.progress(0, "Filtrando ativos por categoria...")
+                for idx, ticker in enumerate(all_tickers):
+                    categoria = categorize_ticker(ticker)
+                    if categoria in categorias_ativas:
+                        # Verificar se está ativo (com volume)
+                        if check_ticker_active(ticker):
+                            filtered_tickers.append(ticker)
+                    
+                    if idx % 10 == 0:
+                        progress_bar_filter.progress((idx + 1) / len(all_tickers), 
+                                                    f"Filtrando: {idx+1}/{len(all_tickers)}")
+                
+                progress_bar_filter.empty()
+                
+                st.info(f"✅ Encontrados {len(filtered_tickers)} ativos ativos nos últimos 60 dias")
+                
+                # Limitar a 100 para não sobrecarregar
+                if len(filtered_tickers) > 100:
+                    st.warning(f"⚠️ Limitando análise aos primeiros 100 ativos para performance")
+                    filtered_tickers = filtered_tickers[:100]
+                
+                progress_bar = st.progress(0)
+                df_ranking = analyze_selected_stocks(filtered_tickers, progress_bar)
+                progress_bar.empty()
+                
+                if not df_ranking.empty:
+                    st.session_state['df_ranking'] = df_ranking
+                    st.success(f"✅ Análise concluída! {len(df_ranking)} ativos com dados de dividendos.")
+                else:
+                    st.error("Nenhum ativo com dados de dividendos encontrado.")
     
-    if not df_ranking.empty:
-        # Salvar no session state
-        st.session_state['df_ranking'] = df_ranking
+    if 'df_ranking' in st.session_state:
+        df_ranking = st.session_state['df_ranking']
         
         # Mostrar estatísticas gerais
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total de Ações Analisadas", len(df_ranking))
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Total de Ativos", len(df_ranking))
         col2.metric("DY Médio (12M)", f"{df_ranking['dy_12m'].mean():.2f}%")
         col3.metric("Consistência Média", f"{df_ranking['consistencia'].mean():.1f}%")
         col4.metric("CAGR Médio", f"{df_ranking['cagr_dividendos'].mean():.2f}%")
         
-        # Filtros
-        st.subheader("🔍 Filtros")
-        col1, col2, col3 = st.columns(3)
+        # Contar por categoria
+        categorias_count = df_ranking['categoria'].value_counts().to_dict()
+        col5.metric("Categorias", len(categorias_count))
+        
+        # Filtros adicionais
+        st.subheader("🔍 Filtros Adicionais")
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
+            categorias_disponiveis = ['Todos'] + sorted(df_ranking['categoria'].unique().tolist())
+            categoria_filtro = st.selectbox("Categoria", categorias_disponiveis)
+        
+        with col2:
             setores_disponiveis = ['Todos'] + sorted(df_ranking['setor'].unique().tolist())
             setor_filtro = st.selectbox("Setor", setores_disponiveis)
         
-        with col2:
+        with col3:
             dy_minimo = st.slider("DY Mínimo (12M)", 0.0, 15.0, 0.0, 0.5)
         
-        with col3:
+        with col4:
             consistencia_minima = st.slider("Consistência Mínima (%)", 0, 100, 0, 10)
         
         # Aplicar filtros
         df_filtrado = df_ranking.copy()
+        if categoria_filtro != 'Todos':
+            df_filtrado = df_filtrado[df_filtrado['categoria'] == categoria_filtro]
         if setor_filtro != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['setor'] == setor_filtro]
         df_filtrado = df_filtrado[df_filtrado['dy_12m'] >= dy_minimo]
@@ -348,12 +535,12 @@ with tab1:
         df_filtrado = df_filtrado.sort_values('score', ascending=False)
         
         # Exibir ranking
-        st.subheader(f"🏆 Top Ações ({len(df_filtrado)} resultados)")
+        st.subheader(f"🏆 Top Ativos ({len(df_filtrado)} resultados)")
         
         # Preparar DataFrame para exibição
-        df_display = df_filtrado[['ticker', 'nome', 'setor', 'preco', 'dy_12m', 'dy_medio', 
+        df_display = df_filtrado[['ticker', 'nome', 'categoria', 'setor', 'preco', 'dy_12m', 'dy_medio', 
                                    'consistencia', 'cagr_dividendos', 'anos_com_div', 'score']].copy()
-        df_display.columns = ['Ticker', 'Nome', 'Setor', 'Preço (R$)', 'DY 12M (%)', 
+        df_display.columns = ['Ticker', 'Nome', 'Categoria', 'Setor', 'Preço (R$)', 'DY 12M (%)', 
                               'DY Médio (%)', 'Consistência (%)', 'CAGR Div (%)', 
                               'Anos c/ Div', 'Score']
         
@@ -375,46 +562,39 @@ with tab1:
         col1, col2 = st.columns(2)
         
         with col1:
-            fig_dy = px.bar(df_filtrado.head(10), x='ticker', y='dy_12m',
-                           title='Top 10 - Dividend Yield (12M)',
-                           labels={'dy_12m': 'DY (%)', 'ticker': 'Ação'},
-                           color='dy_12m', color_continuous_scale='RdYlGn')
+            fig_dy = px.bar(df_filtrado.head(15), x='ticker', y='dy_12m',
+                           title='Top 15 - Dividend Yield (12M)',
+                           labels={'dy_12m': 'DY (%)', 'ticker': 'Ativo'},
+                           color='categoria', 
+                           color_discrete_map={'Ação': '#1f77b4', 'FII': '#ff7f0e', 
+                                              'BDR': '#2ca02c', 'ETF': '#d62728'})
             st.plotly_chart(fig_dy, use_container_width=True)
         
         with col2:
-            fig_score = px.bar(df_filtrado.head(10), x='ticker', y='score',
-                              title='Top 10 - Score Geral',
-                              labels={'score': 'Score', 'ticker': 'Ação'},
-                              color='score', color_continuous_scale='Viridis')
-            st.plotly_chart(fig_score, use_container_width=True)
+            fig_cat = px.pie(df_filtrado, names='categoria', title='Distribuição por Categoria',
+                            color_discrete_map={'Ação': '#1f77b4', 'FII': '#ff7f0e', 
+                                              'BDR': '#2ca02c', 'ETF': '#d62728'})
+            st.plotly_chart(fig_cat, use_container_width=True)
         
-        # Análise por setor
-        st.subheader("📦 Análise por Setor")
-        df_setor = df_filtrado.groupby('setor').agg({
+        # Análise por categoria
+        st.subheader("📦 Análise por Categoria")
+        df_categoria = df_filtrado.groupby('categoria').agg({
             'dy_12m': 'mean',
             'consistencia': 'mean',
             'score': 'mean',
             'ticker': 'count'
         }).round(2)
-        df_setor.columns = ['DY Médio (%)', 'Consistência Média (%)', 'Score Médio', 'Qtd. Ações']
-        df_setor = df_setor.sort_values('Score Médio', ascending=False)
+        df_categoria.columns = ['DY Médio (%)', 'Consistência Média (%)', 'Score Médio', 'Qtd. Ativos']
+        df_categoria = df_categoria.sort_values('Score Médio', ascending=False)
         
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            fig_setor = px.scatter(df_setor.reset_index(), x='DY Médio (%)', y='Consistência Média (%)',
-                                  size='Score Médio', color='setor', hover_name='setor',
-                                  title='Setores: DY vs Consistência')
-            st.plotly_chart(fig_setor, use_container_width=True)
-        
-        with col2:
-            st.dataframe(df_setor, use_container_width=True)
+        st.dataframe(df_categoria, use_container_width=True)
 
 # ===== TAB 2: OTIMIZADOR DE PORTFÓLIO =====
 with tab2:
     st.header("💼 Otimizador de Portfólio")
     
     if 'df_ranking' not in st.session_state:
-        st.warning("⚠️ Por favor, gere o ranking de ações primeiro na aba 'Ranking de Ações'")
+        st.warning("⚠️ Por favor, gere o ranking de ativos primeiro na aba 'Ranking de Ativos'")
     else:
         df_ranking = st.session_state['df_ranking']
         
@@ -455,7 +635,7 @@ with tab2:
                 df_elegivel = df_ranking[df_ranking['dy_12m'] >= dy_minimo_port].copy()
                 
                 if df_elegivel.empty:
-                    st.error("Nenhuma ação encontrada com o DY mínimo especificado. Tente reduzir o valor.")
+                    st.error("Nenhum ativo encontrado com o DY mínimo especificado. Tente reduzir o valor.")
                 else:
                     # Otimizar
                     portfolio = optimize_portfolio(df_elegivel, capital_total, lote_minimo)
@@ -487,10 +667,10 @@ with tab2:
             # Tabela de alocação
             st.subheader("🎯 Alocação Detalhada")
             
-            df_port_display = portfolio[['ticker', 'nome', 'setor', 'preco', 'quantidade', 
+            df_port_display = portfolio[['ticker', 'nome', 'categoria', 'setor', 'preco', 'quantidade', 
                                          'valor_investido', 'percentual_carteira', 'dy_12m',
                                          'dividendos_anuais_estimados']].copy()
-            df_port_display.columns = ['Ticker', 'Nome', 'Setor', 'Preço (R$)', 'Quantidade',
+            df_port_display.columns = ['Ticker', 'Nome', 'Categoria', 'Setor', 'Preço (R$)', 'Quantidade',
                                        'Valor Investido (R$)', '% Carteira', 'DY 12M (%)',
                                        'Dividendos/Ano (R$)']
             
@@ -510,13 +690,16 @@ with tab2:
             
             with col1:
                 fig_pizza = px.pie(df_port_display, values='Valor Investido (R$)', names='Ticker',
-                                   title='Distribuição do Capital por Ação')
+                                   title='Distribuição do Capital por Ativo')
                 st.plotly_chart(fig_pizza, use_container_width=True)
             
             with col2:
-                fig_setor = px.pie(df_port_display, values='Valor Investido (R$)', names='Setor',
-                                   title='Distribuição do Capital por Setor')
-                st.plotly_chart(fig_setor, use_container_width=True)
+                fig_cat_port = px.pie(df_port_display, values='Valor Investido (R$)', names='Categoria',
+                                      title='Distribuição do Capital por Categoria',
+                                      color='Categoria',
+                                      color_discrete_map={'Ação': '#1f77b4', 'FII': '#ff7f0e', 
+                                                         'BDR': '#2ca02c', 'ETF': '#d62728'})
+                st.plotly_chart(fig_cat_port, use_container_width=True)
             
             # Calendário de dividendos
             st.subheader("📅 Calendário Estimado de Dividendos")
@@ -535,7 +718,7 @@ with tab2:
                 # Tabela detalhada
                 with st.expander("📊 Detalhes Mensais"):
                     df_cal_display = calendario[['mes', 'valor_estimado', 'acoes_pagantes']].copy()
-                    df_cal_display.columns = ['Mês', 'Valor Estimado (R$)', 'Ações Pagantes']
+                    df_cal_display.columns = ['Mês', 'Valor Estimado (R$)', 'Ativos Pagantes']
                     st.dataframe(
                         df_cal_display.style.format({'Valor Estimado (R$)': 'R$ {:.2f}'}),
                         use_container_width=True
@@ -562,7 +745,7 @@ with tab3:
     else:
         portfolio = st.session_state['portfolio_otimizado']
         
-        st.info("Simulação do desempenho do portfólio nos últimos 5 anos com os dividendos realmente pagos")
+        st.info("Simulação do desempenho do portfólio nos últimos anos com os dividendos realmente pagos")
         
         anos_simulacao = st.slider("Anos de Histórico", 1, 5, 5)
         
@@ -671,7 +854,7 @@ with tab3:
                 - Nos últimos {anos_simulacao} anos, você teria recebido R$ {total_dividendos:,.2f} em dividendos
                 - Isso representa um retorno de {roi_total:.2f}% sobre o capital investido (apenas dividendos)
                 - Média anual de {roi_anual:.2f}% em dividendos
-                - **Importante:** Esta análise considera apenas dividendos, não inclui valorização/desvalorização das ações
+                - **Importante:** Esta análise considera apenas dividendos, não inclui valorização/desvalorização dos ativos
                 """)
 
 st.markdown("---")

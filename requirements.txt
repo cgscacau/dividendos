@@ -6,4 +6,3 @@ plotly
 requests
 beautifulsoup4
 lxml
-pandas-ta>=0.4.67b0
