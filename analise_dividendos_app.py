@@ -31,6 +31,23 @@ def get_all_b3_tickers():
         fiis = [
             "HGLG11.SA", "VISC11.SA", "MXRF11.SA", "KNRI11.SA",
         ]
+    
+    # BDRs
+    bdrs = [
+        "AAPL34.SA", "MSFT34.SA", "AMZO34.SA", "GOGL34.SA", "META34.SA",
+        "TSLA34.SA", "NVDC34.SA", "NFLX34.SA", "DIS34.SA", "COCA34.SA",
+        "PETR34.SA", "JPMC34.SA", "VISA34.SA", "MAST34.SA", "PYPL34.SA"
+    ]
+    
+    # ETFs
+    etfs = [
+        "BOVA11.SA", "SMAL11.SA", "IVVB11.SA", "SPXI11.SA", "MATB11.SA",
+        "PIBB11.SA", "ISUS11.SA", "FIND11.SA", "DIVO11.SA", "BOVX11.SA",
+        "GOVE11.SA", "BRAX11.SA", "XBOV11.SA", "BOVV11.SA"
+    ]
+    
+    # Retornar todas as listas concatenadas
+    return acoes + fiis + bdrs + etfs
 
 def categorize_ticker(ticker):
     """Categoriza o ticker em: Ação, FII, BDR ou ETF."""
