@@ -7,130 +7,146 @@ from datetime import datetime, timedelta
 import numpy as np
 from collections import defaultdict
 import calendar
-import requests
-from bs4 import BeautifulSoup
-import time
 
 # --- Configurações da Página Streamlit ---
 st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Dividendos")
 
-# --- Funções para Buscar Tickers da B3 ---
+# --- Lista Curada de Tickers da B3 ---
 
-@st.cache_data(ttl=86400)  # Cache por 24 horas
 def get_all_b3_tickers():
-    """Busca todos os tickers negociados na B3 com volume nos últimos 2 meses."""
+    """Retorna lista curada de tickers da B3 por categoria."""
     
-    tickers_data = []
+    # AÇÕES - tickers reais mais negociados
+    acoes = [
+        # Bancos
+        "ITUB4.SA", "BBDC4.SA", "BBAS3.SA", "SANB11.SA", "BPAC11.SA",
+        # Petróleo/Energia
+        "PETR3.SA", "PETR4.SA", "PRIO3.SA", "RECV3.SA", "RRRP3.SA",
+        # Mineração
+        "VALE3.SA", "BRAP4.SA", "GOAU4.SA", "CMIN3.SA", "GGBR4.SA", "USIM5.SA", "CSNA3.SA",
+        # Elétricas
+        "TAEE11.SA", "EGIE3.SA", "CPLE6.SA", "CMIG4.SA", "ENBR3.SA", "NEOE3.SA", "ENEV3.SA",
+        # Saneamento
+        "SAPR11.SA", "SBSP3.SA", "CSMG3.SA",
+        # Telecom
+        "TIMS3.SA", "VIVT3.SA",
+        # Seguradoras
+        "BBSE3.SA", "PSSA3.SA",
+        # Varejo
+        "LREN3.SA", "MGLU3.SA", "VVAR3.SA", "PETZ3.SA", "SOMA3.SA", "GUAR3.SA", "VIIA3.SA",
+        # Consumo
+        "ABEV3.SA", "BRFS3.SA", "MRFG3.SA", "JBSS3.SA", "BEEF3.SA", "SMTO3.SA",
+        # Industrial
+        "WEGE3.SA", "KLBN11.SA", "SUZB3.SA", "RAIL3.SA",
+        # Construção
+        "CYRE3.SA", "MRVE3.SA", "EZTC3.SA", "TEND3.SA", "JHSF3.SA",
+        # Saúde
+        "RDOR3.SA", "FLRY3.SA", "HAPV3.SA", "QUAL3.SA",
+        # Educação
+        "COGN3.SA", "YDUQ3.SA", "ANIM3.SA",
+        # Logística
+        "CCRO3.SA", "ECOR3.SA", "RADL3.SA",
+        # Holdings
+        "ITSA4.SA", "TRPL4.SA", "MULT3.SA",
+        # Outras
+        "B3SA3.SA", "CIEL3.SA", "LWSA3.SA", "POSI3.SA", "AZUL4.SA", "EMBR3.SA",
+        "UGPA3.SA", "TOTS3.SA", "RENT3.SA", "ALSO3.SA", "ALPA4.SA", "CSAN3.SA",
+        "EQTL3.SA", "CVCB3.SA", "POMO4.SA", "IRBR3.SA",
+    ]
     
-    # Lista base de ações principais da B3 (serão verificadas)
-    base_tickers = []
-    
-    # Gerar sufixos comuns de ações brasileiras
-    for num in range(3, 12):  # 3 a 11
-        base_tickers.extend([
-            f"PETR{num}", f"VALE{num}", f"ITUB{num}", f"BBDC{num}", f"BBAS{num}",
-            f"ABEV{num}", f"WEGE{num}", f"RENT{num}", f"MGLU{num}", f"VVAR{num}",
-            f"EGIE{num}", f"CPLE{num}", f"TAEE{num}", f"SAPR{num}", f"SBSP{num}",
-            f"CMIG{num}", f"ENBR{num}", f"TIMS{num}", f"VIVT{num}", f"ITSA{num}",
-            f"BBSE{num}", f"PSSA{num}", f"PRIO{num}", f"TRPL{num}", f"MULT{num}",
-            f"LREN{num}", f"SANB{num}", f"RADL{num}", f"RRRP{num}", f"CSAN{num}",
-            f"SUZB{num}", f"RAIL{num}", f"UGPA{num}", f"HAPV{num}", f"BEEF{num}",
-            f"BRFS{num}", f"MRFG{num}", f"JBSS{num}", f"EQTL{num}", f"TOTS{num}",
-            f"BRAP{num}", f"GOAU{num}", f"CMIN{num}", f"GGBR{num}", f"USIM{num}",
-            f"CSNA{num}", f"CIEL{num}", f"RDOR{num}", f"HAPV{num}", f"FLRY{num}",
-            f"QUAL{num}", f"PETZ{num}", f"YDUQ{num}", f"COGN{num}", f"ANIM{num}",
-            f"LWSA{num}", f"SOMA{num}", f"GUAR{num}", f"CVCB{num}", f"AZUL{num}",
-            f"EMBR{num}", f"ALSO{num}", f"ALPA{num}", f"RECV{num}", f"CYRE{num}",
-            f"MRVE{num}", f"EZTC{num}", f"JHSF{num}", f"TEND{num}", f"EVEN{num}",
-            f"KLBN{num}", f"SUZB{num}", f"RANI{num}", f"CRFB{num}", f"KEPL{num}",
-            f"BRKM{num}", f"BRML{num}", f"POMO{num}", f"GRND{num}", f"IGTI{num}",
-            f"POSI{num}", f"SHOW{num}", f"MOVI{num}", f"NTCO{num}", f"TRAD{num}",
-            f"B3SA{num}", f"CIEL{num}", f"BPAC{num}", f"PINE{num}", f"IRBR{num}",
-            f"BBDC{num}", f"CSMG{num}", f"CESP{num}", f"ELPL{num}", f"NEOE{num}",
-            f"ENEV{num}", f"MEGA{num}", f"AURE{num}", f"CCRO{num}", f"ECOR{num}",
-        ])
-    
-    # Adicionar FIIs populares
+    # FIIs - principais fundos imobiliários  
     fiis = [
-        "HGLG11", "VISC11", "BTLG11", "XPLG11", "MXRF11", "KNRI11", "KNCR11",
-        "HGRU11", "PVBI11", "RZTR11", "BCFF11", "RBRR11", "RBRP11", "IRDM11",
-        "MALL11", "XPML11", "HGRE11", "HGPO11", "BCRI11", "KNIP11", "KNHY11",
-        "VILG11", "VGIR11", "JSRE11", "ALZR11", "RBRF11", "MCHY11", "TGAR11",
-        "CPTS11", "DEVA11", "RBVA11", "RECT11", "CVBI11", "TRXF11", "VCJR11",
-        "VINO11", "HSML11", "HSLG11", "HABT11", "HTMX11", "RBRY11", "BRCR11",
-        "XPCI11", "GAME11", "KFOF11", "BTAL11", "GALG11", "GARE11", "TRBL11",
-        "PATL11", "PORD11", "PLRI11", "GGRC11", "BPFF11", "SARE11", "VRTA11",
+        # Lajes Corporativas
+        "HGLG11.SA", "BTLG11.SA", "XPLG11.SA", "KNCR11.SA", "GGRC11.SA",
+        # Shoppings
+        "MALL11.SA", "XPML11.SA", "VISC11.SA", "HSML11.SA", "HSLG11.SA",
+        # Logística
+        "HGRU11.SA", "HGRE11.SA", "VILG11.SA", "TRXF11.SA", "TGAR11.SA",
+        # Híbridos
+        "MXRF11.SA", "KNRI11.SA", "HGPO11.SA", "KNHY11.SA", "KNIP11.SA",
+        # Recebíveis
+        "RZTR11.SA", "BCFF11.SA", "RBRR11.SA", "RBRF11.SA", "KFOF11.SA",
+        # Títulos
+        "PVBI11.SA", "IRDM11.SA", "BCRI11.SA", "CVBI11.SA", "RECT11.SA",
+        # Residencial
+        "HABT11.SA", "VINO11.SA", "RBVA11.SA", "VCJR11.SA", "RBRY11.SA",
+        # Outros
+        "JSRE11.SA", "ALZR11.SA", "MCHY11.SA", "DEVA11.SA", "CPTS11.SA",
+        "HTMX11.SA", "BRCR11.SA", "XPCI11.SA", "GAME11.SA", "BTAL11.SA",
+        "GALG11.SA", "GARE11.SA", "TRBL11.SA", "PATL11.SA", "PORD11.SA",
+        "PLRI11.SA", "BPFF11.SA", "SARE11.SA", "VRTA11.SA",
     ]
-    base_tickers.extend(fiis)
     
-    # Adicionar BDRs populares (sem números, apenas 34)
+    # BDRs - ações internacionais
     bdrs = [
-        "AAPL34", "MSFT34", "AMZO34", "GOGL34", "TSLA34", "META34", "NVDC34",
-        "NFLX34", "ADBE34", "PYPL34", "INTC34", "CSCO34", "CMCSA34", "PEP34",
-        "COCA34", "DISB34", "NIKE34", "V1SA34", "M1CDONALDS34", "BOEI34",
-        "W1MT34", "HOME34", "PFIZ34", "MRNA34", "JNJ34", "UPS34", "STARBUCKS34",
-        "MBLY34", "UBER34", "AIRB34", "SNAP34", "SPOT34", "SQ34", "TWTR34",
-        "BABA34", "BIDU34", "JD34", "TCEHY34", "S1MH34", "ASML34", "SHEL34",
-        "ITLR34", "BDORY34", "LVMH34", "NESN34", "RHHBY34", "SAP34", "SONY34",
+        # Tech Giants
+        "AAPL34.SA", "MSFT34.SA", "AMZO34.SA", "GOGL34.SA", "META34.SA",
+        "NVDC34.SA", "TSLA34.SA",
+        # Streaming/Media
+        "NFLX34.SA", "DISB34.SA", "SPOT34.SA",
+        # Finance/Payments
+        "V1SA34.SA", "PYPL34.SA", "M1STR34.SA",
+        # E-commerce/Apps
+        "UBER34.SA", "AIRB34.SA",
+        # Consumer Brands
+        "NIKE34.SA", "COCA34.SA", "PEPB34.SA", "S1BX34.SA",
+        # Industrial
+        "BOEI34.SA", "C1AT34.SA",
+        # Healthcare/Pharma
+        "PFIZ34.SA", "JNJ34.SA", "ABBV34.SA",
+        # Retail
+        "W1MT34.SA", "HOME34.SA", "COST34.SA",
+        # Asian Tech
+        "BABA34.SA", "BIDU34.SA", "TCEHY34.SA",
+        # European
+        "ASML34.SA", "NESN34.SA", "LVMH34.SA", "SAP34.SA",
+        # Others
+        "INTC34.SA", "CSCO34.SA", "ADBE34.SA", "UPS34.SA",
     ]
-    base_tickers.extend(bdrs)
     
-    # Adicionar ETFs
+    # ETFs - fundos de índice
     etfs = [
-        "BOVA11", "SMAL11", "IVVB11", "SPXI11", "MATB11", "PIBB11", "ISUS11",
-        "FIND11", "DIVO11", "BOVX11", "GOVE11", "BRAX11", "XBOV11", "BOVV11",
+        "BOVA11.SA",  # Ibovespa
+        "SMAL11.SA",  # Small Caps
+        "IVVB11.SA",  # S&P 500
+        "SPXI11.SA",  # S&P 500
+        "DIVO11.SA",  # Dividendos
+        "MATB11.SA",  # Materiais Básicos
+        "PIBB11.SA",  # IBrX-50
+        "ISUS11.SA",  # Sustentabilidade
+        "FIND11.SA",  # Financeiro
+        "BOVX11.SA",  # Ibovespa
+        "GOVE11.SA",  # Governança
+        "BRAX11.SA",  # Brasil
+        "XBOV11.SA",  # Ibovespa
+        "BOVV11.SA",  # Ibovespa Value
     ]
-    base_tickers.extend(etfs)
     
-    return [ticker + ".SA" if not ticker.endswith(".SA") else ticker for ticker in base_tickers]
+    return acoes + fiis + bdrs + etfs
 
 def categorize_ticker(ticker):
     """Categoriza o ticker em: Ação, FII, BDR ou ETF."""
     ticker_clean = ticker.replace(".SA", "").upper()
     
-    # FIIs terminam em 11
+    # ETFs específicos
+    etfs_list = ["BOVA11", "SMAL11", "IVVB11", "SPXI11", "MATB11", "PIBB11", 
+                 "ISUS11", "FIND11", "DIVO11", "BOVX11", "GOVE11", "BRAX11", 
+                 "XBOV11", "BOVV11"]
+    if ticker_clean in etfs_list:
+        return "ETF"
+    
+    # FIIs terminam em 11 (mas não são ETFs)
     if ticker_clean.endswith("11"):
-        # Verificar se é ETF
-        etfs_keywords = ["BOVA", "SMAL", "IVVB", "SPXI", "MATB", "PIBB", "ISUS", 
-                        "FIND", "DIVO", "BOVX", "GOVE", "BRAX", "XBOV", "BOVV"]
-        if any(etf in ticker_clean for etf in etfs_keywords):
-            return "ETF"
         return "FII"
     
     # BDRs terminam em 34 ou 35
     if ticker_clean.endswith("34") or ticker_clean.endswith("35"):
         return "BDR"
     
-    # ETFs específicos
-    etfs_exact = ["BOVA11", "SMAL11", "IVVB11", "SPXI11", "MATB11", "PIBB11"]
-    if ticker_clean in etfs_exact:
-        return "ETF"
-    
     # Default: Ação
     return "Ação"
 
-@st.cache_data(ttl=3600)
-def check_ticker_active(ticker):
-    """Verifica se o ticker tem negociação nos últimos 60 dias."""
-    try:
-        stock = yf.Ticker(ticker)
-        end_date = datetime.today()
-        start_date = end_date - timedelta(days=60)
-        hist = stock.history(start=start_date, end=end_date)
-        
-        if hist.empty or len(hist) < 5:  # Pelo menos 5 dias de negociação
-            return False
-        
-        # Verificar se teve volume significativo
-        avg_volume = hist['Volume'].mean()
-        if avg_volume < 1000:  # Volume mínimo
-            return False
-        
-        return True
-    except:
-        return False
-
-# --- Funções Auxiliares (mantidas do código anterior) ---
+# --- Funções Auxiliares ---
 
 @st.cache_resource(ttl=1800)
 def get_stock_object_yf(ticker_symbol):
@@ -287,13 +303,28 @@ def optimize_portfolio(df_stocks, capital_total, min_acoes_por_empresa=100):
     df_selected['peso'] = df_selected['score'] / df_selected['score'].sum()
     df_selected['capital_alocado'] = df_selected['peso'] * capital_total
     
-    # Calcular quantidade de ações (lotes de 100)
-    df_selected['quantidade_ideal'] = df_selected['capital_alocado'] / df_selected['preco']
-    df_selected['quantidade'] = (df_selected['quantidade_ideal'] // min_acoes_por_empresa) * min_acoes_por_empresa
-    df_selected['quantidade'] = df_selected['quantidade'].astype(int)
+    # Calcular quantidade de ações (lotes de 100 para ações, 1 para FIIs/BDRs/ETFs)
+    def calcular_quantidade(row):
+        if row['categoria'] == 'Ação':
+            lote = min_acoes_por_empresa
+        else:
+            lote = 1  # FIIs, BDRs e ETFs geralmente não têm lote mínimo
+        
+        qtd_ideal = row['capital_alocado'] / row['preco']
+        qtd_lotes = (qtd_ideal // lote) * lote
+        return int(qtd_lotes) if qtd_lotes > 0 else lote
+    
+    df_selected['quantidade'] = df_selected.apply(calcular_quantidade, axis=1)
     
     # Recalcular valores reais
     df_selected['valor_investido'] = df_selected['quantidade'] * df_selected['preco']
+    
+    # Remover linhas com valor zero
+    df_selected = df_selected[df_selected['valor_investido'] > 0]
+    
+    if df_selected.empty:
+        return None
+    
     df_selected['percentual_carteira'] = (df_selected['valor_investido'] / df_selected['valor_investido'].sum()) * 100
     
     # Dividendos esperados (baseado em DY 12m)
@@ -307,7 +338,7 @@ def optimize_portfolio(df_stocks, capital_total, min_acoes_por_empresa=100):
 def simulate_portfolio_history(portfolio_df, years=5):
     """Simula o histórico do portfólio nos últimos N anos."""
     if portfolio_df is None or portfolio_df.empty:
-        return None
+        return None, None
     
     # Preparar dados históricos
     end_date = datetime.today()
@@ -397,47 +428,33 @@ def create_dividend_calendar(portfolio_df):
 # --- Interface Principal ---
 st.title("🎯 Otimizador de Carteira de Dividendos - B3 Completa")
 st.markdown("""
-Este aplicativo analisa **TODAS as ações, FIIs, BDRs e ETFs** negociados na B3 e cria um portfólio otimizado 
+Este aplicativo analisa **ações, FIIs, BDRs e ETFs** negociados na B3 e cria um portfólio otimizado 
 para gerar fluxo de caixa mensal consistente.
 """)
 
 # Sidebar com filtros de categoria
 st.sidebar.header("🔍 Filtros de Segmento")
 
-# Inicializar session state para checkboxes
-if 'categorias_selecionadas' not in st.session_state:
-    st.session_state.categorias_selecionadas = {
-        'Ação': True,
-        'FII': True,
-        'BDR': False,
-        'ETF': False
-    }
-
 # Checkboxes para categorias
 st.sidebar.markdown("**Selecione os segmentos para análise:**")
-categoria_acao = st.sidebar.checkbox("📈 Ações", value=st.session_state.categorias_selecionadas['Ação'])
-categoria_fii = st.sidebar.checkbox("🏢 FIIs (Fundos Imobiliários)", value=st.session_state.categorias_selecionadas['FII'])
-categoria_bdr = st.sidebar.checkbox("🌎 BDRs (Ações Internacionais)", value=st.session_state.categorias_selecionadas['BDR'])
-categoria_etf = st.sidebar.checkbox("📊 ETFs (Fundos de Índice)", value=st.session_state.categorias_selecionadas['ETF'])
-
-# Atualizar session state
-st.session_state.categorias_selecionadas = {
-    'Ação': categoria_acao,
-    'FII': categoria_fii,
-    'BDR': categoria_bdr,
-    'ETF': categoria_etf
-}
+categoria_acao = st.sidebar.checkbox("📈 Ações", value=True, key="check_acoes")
+categoria_fii = st.sidebar.checkbox("🏢 FIIs (Fundos Imobiliários)", value=True, key="check_fiis")
+categoria_bdr = st.sidebar.checkbox("🌎 BDRs (Ações Internacionais)", value=False, key="check_bdrs")
+categoria_etf = st.sidebar.checkbox("📊 ETFs (Fundos de Índice)", value=False, key="check_etfs")
 
 # Verificar se pelo menos uma categoria está selecionada
-categorias_ativas = [k for k, v in st.session_state.categorias_selecionadas.items() if v]
+categorias_ativas = []
+if categoria_acao:
+    categorias_ativas.append('Ação')
+if categoria_fii:
+    categorias_ativas.append('FII')
+if categoria_bdr:
+    categorias_ativas.append('BDR')
+if categoria_etf:
+    categorias_ativas.append('ETF')
 
 if not categorias_ativas:
     st.sidebar.warning("⚠️ Selecione pelo menos um segmento!")
-
-# Buscar tickers
-if 'all_tickers' not in st.session_state:
-    with st.spinner("Carregando lista de ativos da B3..."):
-        st.session_state.all_tickers = get_all_b3_tickers()
 
 # Criar abas principais
 tab1, tab2, tab3 = st.tabs(["📊 Ranking de Ativos", "💼 Otimizador de Portfólio", "📈 Simulação Histórica"])
@@ -451,37 +468,26 @@ with tab1:
         categorias_str = ", ".join(categorias_ativas) if categorias_ativas else "Nenhum"
         st.info(f"🔍 Segmentos selecionados: **{categorias_str}**")
     with col2:
-        if st.button("🔄 Atualizar Ranking", type="primary", disabled=not categorias_ativas):
+        if st.button("🔄 Limpar Cache", type="secondary"):
             st.cache_data.clear()
+            st.success("Cache limpo!")
     
     if categorias_ativas:
         if st.button("🚀 Analisar Ativos Selecionados", type="primary"):
-            with st.spinner("Analisando ativos... Isso pode levar alguns minutos..."):
-                # Filtrar tickers por categoria
-                all_tickers = st.session_state.all_tickers
-                filtered_tickers = []
+            with st.spinner("Analisando ativos..."):
+                # Buscar todos os tickers
+                all_tickers = get_all_b3_tickers()
                 
-                progress_bar_filter = st.progress(0, "Filtrando ativos por categoria...")
-                for idx, ticker in enumerate(all_tickers):
+                # Filtrar por categoria
+                filtered_tickers = []
+                for ticker in all_tickers:
                     categoria = categorize_ticker(ticker)
                     if categoria in categorias_ativas:
-                        # Verificar se está ativo (com volume)
-                        if check_ticker_active(ticker):
-                            filtered_tickers.append(ticker)
-                    
-                    if idx % 10 == 0:
-                        progress_bar_filter.progress((idx + 1) / len(all_tickers), 
-                                                    f"Filtrando: {idx+1}/{len(all_tickers)}")
+                        filtered_tickers.append(ticker)
                 
-                progress_bar_filter.empty()
+                st.info(f"✅ Encontrados {len(filtered_tickers)} ativos para análise")
                 
-                st.info(f"✅ Encontrados {len(filtered_tickers)} ativos ativos nos últimos 60 dias")
-                
-                # Limitar a 100 para não sobrecarregar
-                if len(filtered_tickers) > 100:
-                    st.warning(f"⚠️ Limitando análise aos primeiros 100 ativos para performance")
-                    filtered_tickers = filtered_tickers[:100]
-                
+                # Analisar
                 progress_bar = st.progress(0)
                 df_ranking = analyze_selected_stocks(filtered_tickers, progress_bar)
                 progress_bar.empty()
@@ -552,7 +558,7 @@ with tab1:
                                    'Consistência (%)': '{:.1f}%',
                                    'CAGR Div (%)': '{:.2f}%',
                                    'Score': '{:.2f}'}),
-            use_container_width=True,
+            width=None,
             height=400
         )
         
@@ -587,7 +593,7 @@ with tab1:
         df_categoria.columns = ['DY Médio (%)', 'Consistência Média (%)', 'Score Médio', 'Qtd. Ativos']
         df_categoria = df_categoria.sort_values('Score Médio', ascending=False)
         
-        st.dataframe(df_categoria, use_container_width=True)
+        st.dataframe(df_categoria, width=None)
 
 # ===== TAB 2: OTIMIZADOR DE PORTFÓLIO =====
 with tab2:
@@ -619,7 +625,8 @@ with tab2:
                 min_value=1,
                 max_value=1000,
                 value=100,
-                step=1
+                step=1,
+                help="FIIs, BDRs e ETFs usam lote 1"
             )
         
         with col3:
@@ -644,7 +651,7 @@ with tab2:
                         st.session_state['portfolio_otimizado'] = portfolio
                         st.success("✅ Portfólio otimizado com sucesso!")
                     else:
-                        st.error("Não foi possível criar um portfólio com os parâmetros especificados.")
+                        st.error("Não foi possível criar um portfólio com os parâmetros especificados. Tente aumentar o capital ou reduzir o lote mínimo.")
         
         # Exibir portfólio otimizado
         if 'portfolio_otimizado' in st.session_state:
@@ -654,7 +661,7 @@ with tab2:
             
             # Métricas gerais
             total_investido = portfolio['valor_investido'].sum()
-            dy_medio_carteira = (portfolio['dividendos_anuais_estimados'].sum() / total_investido) * 100
+            dy_medio_carteira = (portfolio['dividendos_anuais_estimados'].sum() / total_investido) * 100 if total_investido > 0 else 0
             dividendos_anuais = portfolio['dividendos_anuais_estimados'].sum()
             dividendos_mensais = dividendos_anuais / 12
             
@@ -682,7 +689,7 @@ with tab2:
                     'DY 12M (%)': '{:.2f}%',
                     'Dividendos/Ano (R$)': 'R$ {:.2f}'
                 }).background_gradient(subset=['% Carteira'], cmap='Blues'),
-                use_container_width=True
+                width=None
             )
             
             # Gráficos
@@ -721,7 +728,7 @@ with tab2:
                     df_cal_display.columns = ['Mês', 'Valor Estimado (R$)', 'Ativos Pagantes']
                     st.dataframe(
                         df_cal_display.style.format({'Valor Estimado (R$)': 'R$ {:.2f}'}),
-                        use_container_width=True
+                        width=None
                     )
             else:
                 st.warning("Não foi possível gerar o calendário de dividendos")
@@ -801,37 +808,39 @@ with tab3:
             
             with col1:
                 st.write("**Dividendos Anuais:**")
-                stats_annual = df_annual['dividendos'].describe()
-                st.dataframe(
-                    pd.DataFrame({
-                        'Estatística': ['Média', 'Mediana', 'Desvio Padrão', 'Mínimo', 'Máximo'],
-                        'Valor (R$)': [
-                            stats_annual['mean'],
-                            df_annual['dividendos'].median(),
-                            stats_annual['std'],
-                            stats_annual['min'],
-                            stats_annual['max']
-                        ]
-                    }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
-                    use_container_width=True
-                )
+                if not df_annual.empty:
+                    stats_annual = df_annual['dividendos'].describe()
+                    st.dataframe(
+                        pd.DataFrame({
+                            'Estatística': ['Média', 'Mediana', 'Desvio Padrão', 'Mínimo', 'Máximo'],
+                            'Valor (R$)': [
+                                stats_annual['mean'],
+                                df_annual['dividendos'].median(),
+                                stats_annual['std'],
+                                stats_annual['min'],
+                                stats_annual['max']
+                            ]
+                        }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
+                        width=None
+                    )
             
             with col2:
                 st.write("**Dividendos Mensais:**")
-                stats_monthly = df_monthly['dividendos'].describe()
-                st.dataframe(
-                    pd.DataFrame({
-                        'Estatística': ['Média', 'Mediana', 'Desvio Padrão', 'Mínimo', 'Máximo'],
-                        'Valor (R$)': [
-                            stats_monthly['mean'],
-                            df_monthly['dividendos'].median(),
-                            stats_monthly['std'],
-                            stats_monthly['min'],
-                            stats_monthly['max']
-                        ]
-                    }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
-                    use_container_width=True
-                )
+                if not df_monthly.empty:
+                    stats_monthly = df_monthly['dividendos'].describe()
+                    st.dataframe(
+                        pd.DataFrame({
+                            'Estatística': ['Média', 'Mediana', 'Desvio Padrão', 'Mínimo', 'Máximo'],
+                            'Valor (R$)': [
+                                stats_monthly['mean'],
+                                df_monthly['dividendos'].median(),
+                                stats_monthly['std'],
+                                stats_monthly['min'],
+                                stats_monthly['max']
+                            ]
+                        }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
+                        width=None
+                    )
             
             # Análise de rentabilidade
             st.subheader("💹 Análise de Rentabilidade")
@@ -842,8 +851,8 @@ with tab3:
                 
                 col1, col2, col3 = st.columns(3)
                 
-                roi_total = (total_dividendos / valor_investido_total) * 100
-                roi_anual = roi_total / anos_simulacao
+                roi_total = (total_dividendos / valor_investido_total) * 100 if valor_investido_total > 0 else 0
+                roi_anual = roi_total / anos_simulacao if anos_simulacao > 0 else 0
                 
                 col1.metric("💼 Valor Investido", f"R$ {valor_investido_total:,.2f}")
                 col2.metric("📈 ROI Total (Dividendos)", f"{roi_total:.2f}%")
