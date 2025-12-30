@@ -5,374 +5,679 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import numpy as np
-import traceback # Para debug de erros
+from collections import defaultdict
+import calendar
 
 # --- Configurações da Página Streamlit ---
-st.set_page_config(layout="wide", page_title="Análise Aprofundada de Ações para Dividendos")
+st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Dividendos")
+
+# --- Lista de Ações Brasileiras Recomendadas para Dividendos ---
+ACOES_DIVIDENDOS_BR = {
+    "Bancos": ["ITUB4.SA", "BBDC4.SA", "BBAS3.SA", "SANB11.SA"],
+    "Energia": ["TAEE11.SA", "EGIE3.SA", "CPLE6.SA", "CMIG4.SA", "ENBR3.SA"],
+    "Saneamento": ["SAPR11.SA", "SBSP3.SA", "CSMG3.SA"],
+    "Telecomunicações": ["TIMS3.SA", "VIVT3.SA"],
+    "Seguros": ["BBSE3.SA", "PSSA3.SA"],
+    "Petróleo": ["PETR4.SA", "PRIO3.SA"],
+    "Imobiliário": ["TRPL4.SA", "MULT3.SA"],
+    "Varejo": ["LREN3.SA"],
+    "Holdings": ["ITSA4.SA"]
+}
 
 # --- Funções Auxiliares ---
 
-@st.cache_resource(ttl=1800) # Cache de 30 minutos para o objeto Ticker
+@st.cache_resource(ttl=1800)
 def get_stock_object_yf(ticker_symbol):
-    """Retorna o objeto Ticker do yfinance. Cacheado como recurso."""
-    # st.write(f"DEBUG: Criando/Buscando objeto Ticker para: {ticker_symbol}") # Para debug
+    """Retorna o objeto Ticker do yfinance."""
     try:
         stock = yf.Ticker(ticker_symbol)
-        if hasattr(stock, 'info') and stock.info and stock.info.get('regularMarketPrice') is not None:
+        if hasattr(stock, 'info') and stock.info:
             return stock
-        elif hasattr(stock, '_history') and stock._history is not None and len(stock._history) > 0:
-             return stock
-        else:
-            return None
-    except Exception as e:
         return None
-
-@st.cache_data(ttl=1800) # Cache para os dados extraídos
-def get_stock_info_yf(_stock_obj, ticker_symbol_arg_for_error_msg):
-    """Busca informações gerais e métricas de valuation atuais da ação via yfinance, usando o objeto Ticker."""
-    if _stock_obj is None: return None
-    try:
-        info = _stock_obj.info
-        if not info:
-             return { "nome_longo": ticker_symbol_arg_for_error_msg, "setor": "N/A", "industria": "N/A", "resumo_negocio": "N/A",
-                     "pl_atual": "N/A", "pvp_atual": "N/A", "payout_ratio": "N/A", "beta": "N/A",
-                     "market_cap": 0, "preco_atual": "N/A", "website": "#"}
-        
-        data = {
-            "nome_longo": info.get('longName', info.get('shortName', ticker_symbol_arg_for_error_msg)),
-            "setor": info.get('sector', 'N/A'),
-            "industria": info.get('industry', 'N/A'),
-            "resumo_negocio": info.get('longBusinessSummary', 'N/A'),
-            "pl_atual": round(info.get('trailingPE'), 2) if isinstance(info.get('trailingPE'), (int, float)) else "N/A",
-            "pvp_atual": round(info.get('priceToBook'), 2) if isinstance(info.get('priceToBook'), (int, float)) else "N/A",
-            "payout_ratio": round(info.get('payoutRatio', 0) * 100, 2) if isinstance(info.get('payoutRatio'), (int, float)) and info.get('payoutRatio') >= 0 else "N/A",
-            "beta": round(info.get('beta'), 2) if isinstance(info.get('beta'), (int, float)) else "N/A",
-            "market_cap": info.get('marketCap', 0),
-            "preco_atual": info.get('regularMarketPrice', info.get('currentPrice', "N/A")),
-            "website": info.get('website', "#")
-        }
-        return data
-    except Exception as e:
-        st.error(f"Erro crítico ao buscar informações detalhadas para {ticker_symbol_arg_for_error_msg} via yfinance: {e}")
+    except Exception:
         return None
 
 @st.cache_data(ttl=1800)
-def calculate_dy_last_12_months(_stock_obj, current_price_arg, ticker_symbol_arg_for_error_msg):
-    if _stock_obj is None: return "N/A"
-    if not isinstance(current_price_arg, (int, float)) or current_price_arg <= 0: return 0.0
-
+def get_stock_info_yf(_stock_obj, ticker_symbol):
+    """Busca informações gerais da ação."""
+    if _stock_obj is None:
+        return None
     try:
-        end_date_dy = datetime.today().date()
-        start_date_dy = end_date_dy - timedelta(days=365)
-        dividends_all = _stock_obj.dividends
-        if dividends_all.empty: return 0.0
-
-        dividends_index_naive = dividends_all.index.tz_localize(None)
-        start_dt_naive = pd.to_datetime(start_date_dy)
-        end_dt_naive = pd.to_datetime(end_date_dy)
-        dividends_l12m = dividends_all[(dividends_index_naive >= start_dt_naive) & (dividends_index_naive <= end_dt_naive)]
+        info = _stock_obj.info
+        if not info:
+            return None
         
-        if dividends_l12m.empty: return 0.0
-        sum_dividends_l12m = dividends_l12m.sum()
-        if sum_dividends_l12m <= 0: return 0.0
-            
-        dy_l12m = (sum_dividends_l12m / current_price_arg) * 100
-        return round(dy_l12m, 2)
-    except Exception: return "N/A"
+        data = {
+            "ticker": ticker_symbol,
+            "nome_longo": info.get('longName', info.get('shortName', ticker_symbol)),
+            "setor": info.get('sector', 'N/A'),
+            "preco_atual": info.get('regularMarketPrice', info.get('currentPrice', 0)),
+            "pl_atual": info.get('trailingPE', 0),
+            "payout_ratio": info.get('payoutRatio', 0) * 100 if info.get('payoutRatio') else 0
+        }
+        return data
+    except Exception:
+        return None
 
-@st.cache_data(ttl=3600)
-def get_historical_prices_yf(_stock_obj, start_date, end_date, ticker_symbol_arg_for_error_msg):
-    if _stock_obj is None: return None
-    try:
-        hist_data = _stock_obj.history(start=datetime(start_date.year, start_date.month, start_date.day), 
-                                       end=datetime(end_date.year, end_date.month, end_date.day) + timedelta(days=1))
-        if hist_data.empty: return None
-        return hist_data[['Close', 'Volume']]
-    except Exception: return None
-
-@st.cache_data(ttl=3600)
-def get_dividend_data_yf(_stock_obj, start_date_period, end_date_period, ticker_symbol_arg_for_error_msg):
-    if _stock_obj is None: return pd.DataFrame(columns=['Ano', 'Dividendos Anuais (R$)'])
-    try:
-        dividends = _stock_obj.dividends
-        if dividends.empty: return pd.DataFrame(columns=['Ano', 'Dividendos Anuais (R$)'])
-
-        start_dt_naive = pd.to_datetime(start_date_period)
-        end_dt_naive = pd.to_datetime(end_date_period)
-        dividends_index_naive = dividends.index.tz_localize(None)
-        dividends_in_period = dividends[(dividends_index_naive >= start_dt_naive) & (dividends_index_naive <= end_dt_naive)]
-        
-        if dividends_in_period.empty: return pd.DataFrame(columns=['Ano', 'Dividendos Anuais (R$)'])
-
-        annual_dividends_list = []
-        for year, group_df in dividends_in_period.groupby(dividends_in_period.index.year):
-            annual_dividends_list.append({'Ano': year, 'Dividendos Anuais (R$)': group_df.sum()})
-        
-        return pd.DataFrame(annual_dividends_list).sort_values(by='Ano') if annual_dividends_list else pd.DataFrame(columns=['Ano', 'Dividendos Anuais (R$)'])
-    except Exception: return pd.DataFrame(columns=['Ano', 'Dividendos Anuais (R$)'])
-
-def calculate_cagr(series_values):
-    numeric_series = pd.to_numeric(series_values, errors='coerce').dropna()
-    positive_series = numeric_series[numeric_series > 0]
-    if len(positive_series) < 2: return "N/A"
-    start_value, end_value = positive_series.iloc[0], positive_series.iloc[-1]
-    num_years = positive_series.index.max() - positive_series.index.min()
-    if isinstance(series_values.index, pd.RangeIndex) or num_years == 0 :
-         num_years = len(positive_series) -1
-    if num_years <= 0 : return "N/A (período insuficiente)"
-    if start_value <= 0: return "N/A (valor inicial <=0)"
-    cagr = ((end_value / start_value) ** (1 / num_years)) - 1
-    return round(cagr * 100, 2)
-
-def calculate_historical_dy(annual_dividends_df, historical_prices_df):
-    if annual_dividends_df.empty or historical_prices_df is None or historical_prices_df.empty:
-        return pd.DataFrame(columns=['Ano', 'Preço Base (R$)', 'DY Anual (%)']), "N/A", "N/A"
+@st.cache_data(ttl=1800)
+def get_dividends_history(_stock_obj, years=5):
+    """Busca histórico de dividendos."""
+    if _stock_obj is None:
+        return pd.DataFrame()
     
-    historical_dys_calc = []
-    prices_df_naive_index = historical_prices_df.copy()
-    if prices_df_naive_index.index.tz is not None:
-        prices_df_naive_index.index = prices_df_naive_index.index.tz_localize(None)
+    try:
+        end_date = datetime.today()
+        start_date = end_date - timedelta(days=years*365 + 100)
+        dividends = _stock_obj.dividends
+        
+        if dividends.empty:
+            return pd.DataFrame()
+        
+        # Filtrar período
+        dividends_index = dividends.index.tz_localize(None) if dividends.index.tz else dividends.index
+        start_dt = pd.to_datetime(start_date)
+        end_dt = pd.to_datetime(end_date)
+        
+        dividends_filtered = dividends[(dividends_index >= start_dt) & (dividends_index <= end_dt)]
+        
+        return dividends_filtered
+    except Exception:
+        return pd.DataFrame()
 
-    for _, row in annual_dividends_df.iterrows():
-        year, annual_dividend_value = int(row['Ano']), row['Dividendos Anuais (R$)']
-        if not isinstance(annual_dividend_value, (int, float)) or annual_dividend_value <= 0:
-            historical_dys_calc.append({'Ano': year, 'Preço Base (R$)': 'N/A', 'DY Anual (%)': 'N/A (Div Inválido)'})
+@st.cache_data(ttl=1800)
+def calculate_dividend_metrics(ticker_symbol, years=5):
+    """Calcula métricas de dividendos para uma ação."""
+    stock = get_stock_object_yf(ticker_symbol)
+    if stock is None:
+        return None
+    
+    info = get_stock_info_yf(stock, ticker_symbol)
+    if info is None or info['preco_atual'] == 0:
+        return None
+    
+    dividends = get_dividends_history(stock, years)
+    if dividends.empty:
+        return None
+    
+    # Calcular métricas
+    preco_atual = info['preco_atual']
+    
+    # DY dos últimos 12 meses
+    end_date = datetime.today()
+    start_12m = end_date - timedelta(days=365)
+    dividends_index = dividends.index.tz_localize(None) if dividends.index.tz else dividends.index
+    dividends_12m = dividends[dividends_index >= pd.to_datetime(start_12m)]
+    dy_12m = (dividends_12m.sum() / preco_atual * 100) if not dividends_12m.empty and preco_atual > 0 else 0
+    
+    # Dividendos anuais
+    dividends_by_year = dividends.groupby(dividends.index.year).sum()
+    dy_medio = dividends_by_year.mean() / preco_atual * 100 if preco_atual > 0 else 0
+    
+    # Consistência (% de anos com dividendos)
+    anos_com_dividendos = len(dividends_by_year)
+    consistencia = (anos_com_dividendos / years) * 100
+    
+    # Crescimento (CAGR)
+    if len(dividends_by_year) >= 2:
+        start_val = dividends_by_year.iloc[0]
+        end_val = dividends_by_year.iloc[-1]
+        num_years = len(dividends_by_year) - 1
+        if start_val > 0 and num_years > 0:
+            cagr = ((end_val / start_val) ** (1 / num_years) - 1) * 100
+        else:
+            cagr = 0
+    else:
+        cagr = 0
+    
+    # Score composto (ponderação: DY 40%, Consistência 30%, Crescimento 30%)
+    score = (dy_12m * 0.4) + (consistencia * 0.3) + (max(0, min(cagr, 20)) * 0.3)
+    
+    return {
+        'ticker': ticker_symbol,
+        'nome': info['nome_longo'],
+        'setor': info['setor'],
+        'preco': preco_atual,
+        'dy_12m': round(dy_12m, 2),
+        'dy_medio': round(dy_medio, 2),
+        'consistencia': round(consistencia, 1),
+        'cagr_dividendos': round(cagr, 2),
+        'anos_com_div': anos_com_dividendos,
+        'score': round(score, 2),
+        'dividends_history': dividends
+    }
+
+def analyze_all_stocks(progress_bar=None):
+    """Analisa todas as ações da lista."""
+    all_tickers = []
+    for setor, tickers in ACOES_DIVIDENDOS_BR.items():
+        all_tickers.extend(tickers)
+    
+    results = []
+    total = len(all_tickers)
+    
+    for idx, ticker in enumerate(all_tickers):
+        if progress_bar:
+            progress_bar.progress((idx + 1) / total, f"Analisando {ticker}...")
+        
+        metrics = calculate_dividend_metrics(ticker)
+        if metrics:
+            results.append(metrics)
+    
+    return pd.DataFrame(results)
+
+def optimize_portfolio(df_stocks, capital_total, min_acoes_por_empresa=100):
+    """Otimiza o portfólio para maximizar DY e diversificação."""
+    if df_stocks.empty or capital_total <= 0:
+        return None
+    
+    # Ordenar por score
+    df_sorted = df_stocks.sort_values('score', ascending=False).copy()
+    
+    # Selecionar top ações (máximo 10 para diversificação)
+    max_acoes = min(10, len(df_sorted))
+    df_selected = df_sorted.head(max_acoes).copy()
+    
+    # Distribuir capital proporcionalmente ao score
+    df_selected['peso'] = df_selected['score'] / df_selected['score'].sum()
+    df_selected['capital_alocado'] = df_selected['peso'] * capital_total
+    
+    # Calcular quantidade de ações (lotes de 100)
+    df_selected['quantidade_ideal'] = df_selected['capital_alocado'] / df_selected['preco']
+    df_selected['quantidade'] = (df_selected['quantidade_ideal'] // min_acoes_por_empresa) * min_acoes_por_empresa
+    df_selected['quantidade'] = df_selected['quantidade'].astype(int)
+    
+    # Recalcular valores reais
+    df_selected['valor_investido'] = df_selected['quantidade'] * df_selected['preco']
+    df_selected['percentual_carteira'] = (df_selected['valor_investido'] / df_selected['valor_investido'].sum()) * 100
+    
+    # Dividendos esperados (baseado em DY 12m)
+    df_selected['dividendos_anuais_estimados'] = df_selected['valor_investido'] * (df_selected['dy_12m'] / 100)
+    df_selected['dividendos_mensais_estimados'] = df_selected['dividendos_anuais_estimados'] / 12
+    
+    return df_selected[['ticker', 'nome', 'setor', 'preco', 'quantidade', 'valor_investido', 
+                        'percentual_carteira', 'dy_12m', 'dividendos_anuais_estimados', 
+                        'dividendos_mensais_estimados', 'score', 'dividends_history']]
+
+def simulate_portfolio_history(portfolio_df, years=5):
+    """Simula o histórico do portfólio nos últimos N anos."""
+    if portfolio_df is None or portfolio_df.empty:
+        return None
+    
+    # Preparar dados históricos
+    end_date = datetime.today()
+    start_date = end_date - timedelta(days=years*365)
+    
+    monthly_dividends = defaultdict(float)
+    annual_dividends = defaultdict(float)
+    
+    for _, row in portfolio_df.iterrows():
+        dividends = row['dividends_history']
+        quantidade = row['quantidade']
+        
+        if dividends.empty:
             continue
         
-        price_target_date_end_prev_year = pd.to_datetime(datetime(year - 1, 12, 31))
-        price_target_date_start_prev_year = pd.to_datetime(datetime(year - 1, 12, 1))
-        prices_prev_year = prices_df_naive_index[(prices_df_naive_index.index >= price_target_date_start_prev_year) & (prices_df_naive_index.index <= price_target_date_end_prev_year)]
-        base_price = prices_prev_year['Close'].iloc[-1] if not prices_prev_year.empty else np.nan
-
-        if pd.notna(base_price) and base_price > 0:
-            historical_dys_calc.append({'Ano': year, 'Preço Base (R$)': round(base_price,2), 'DY Anual (%)': round((annual_dividend_value / base_price) * 100, 2)})
-        else:
-            historical_dys_calc.append({'Ano': year, 'Preço Base (R$)': 'N/D (Preço)', 'DY Anual (%)': 'N/D (Preço)'})
+        for date, div_value in dividends.items():
+            date_naive = date.tz_localize(None) if hasattr(date, 'tz_localize') else date
+            
+            if date_naive >= pd.to_datetime(start_date):
+                year = date_naive.year
+                month_key = f"{date_naive.year}-{date_naive.month:02d}"
+                
+                total_dividend = div_value * quantidade
+                monthly_dividends[month_key] += total_dividend
+                annual_dividends[year] += total_dividend
     
-    df_historical_dys_final = pd.DataFrame(historical_dys_calc)
-    valid_dys = pd.to_numeric(df_historical_dys_final['DY Anual (%)'], errors='coerce').dropna()
-    avg_dy_value = round(valid_dys.mean(), 2) if not valid_dys.empty else "N/A"
+    # Criar DataFrames
+    df_monthly = pd.DataFrame([
+        {'mes': k, 'dividendos': v} for k, v in sorted(monthly_dividends.items())
+    ])
     
-    divs_for_cagr = annual_dividends_df.set_index('Ano')['Dividendos Anuais (R$)']
-    cagr_dividends_value = calculate_cagr(divs_for_cagr)
-    return df_historical_dys_final, avg_dy_value, cagr_dividends_value
+    df_annual = pd.DataFrame([
+        {'ano': k, 'dividendos': v} for k, v in sorted(annual_dividends.items())
+    ])
+    
+    return df_monthly, df_annual
 
-def calculate_fibonacci_levels(price_series_period):
-    if price_series_period is None or len(price_series_period) < 2: return None, None
-    max_price, min_price = price_series_period.max(), price_series_period.min()
-    price_range = max_price - min_price
-    if price_range == 0: return None, None
-
-    fib_retracement_levels = {
-        "0.0% (Mín)": min_price, "23.6%": max_price - (price_range * 0.236),
-        "38.2%": max_price - (price_range * 0.382), "50.0%": max_price - (price_range * 0.5),
-        "61.8%": max_price - (price_range * 0.618), "78.6%": max_price - (price_range * 0.786),
-        "100.0% (Máx)": max_price
-    }
-    fib_projection_levels = {
-        "127.2%": max_price + (price_range * 0.272), "161.8%": max_price + (price_range * 0.618),
-        "200.0%": max_price + price_range, "261.8%": max_price + (price_range * 1.618)
-    }
-    return fib_retracement_levels, fib_projection_levels
+def create_dividend_calendar(portfolio_df):
+    """Cria calendário de pagamento de dividendos."""
+    if portfolio_df is None or portfolio_df.empty:
+        return None
+    
+    # Analisar últimos 24 meses para identificar padrão
+    end_date = datetime.today()
+    start_date = end_date - timedelta(days=730)
+    
+    dividend_calendar = defaultdict(lambda: defaultdict(list))
+    
+    for _, row in portfolio_df.iterrows():
+        ticker = row['ticker']
+        dividends = row['dividends_history']
+        quantidade = row['quantidade']
+        
+        if dividends.empty:
+            continue
+        
+        for date, div_value in dividends.items():
+            date_naive = date.tz_localize(None) if hasattr(date, 'tz_localize') else date
+            
+            if date_naive >= pd.to_datetime(start_date):
+                month = date_naive.month
+                total_dividend = div_value * quantidade
+                dividend_calendar[month][ticker].append(total_dividend)
+    
+    # Calcular média por mês
+    monthly_summary = []
+    for month in range(1, 13):
+        month_name = calendar.month_name[month]
+        total_month = 0
+        tickers_pagantes = []
+        
+        if month in dividend_calendar:
+            for ticker, values in dividend_calendar[month].items():
+                avg_value = np.mean(values)
+                total_month += avg_value
+                tickers_pagantes.append(f"{ticker.replace('.SA', '')}")
+        
+        monthly_summary.append({
+            'mes_num': month,
+            'mes': month_name,
+            'valor_estimado': total_month,
+            'acoes_pagantes': ', '.join(tickers_pagantes) if tickers_pagantes else 'Nenhuma'
+        })
+    
+    return pd.DataFrame(monthly_summary)
 
 # --- Interface Principal ---
-st.title("🔎 Análise Aprofundada de Ações para Carteira de Dividendos")
+st.title("🎯 Otimizador de Carteira de Dividendos")
+st.markdown("""
+Este aplicativo analisa as melhores ações brasileiras pagadoras de dividendos e cria um portfólio otimizado 
+para gerar fluxo de caixa mensal consistente.
+""")
 
-st.sidebar.header("⚙️ Configurações da Análise")
-ticker_input_sb = st.sidebar.text_input("Ticker da Ação (ex: ITSA4.SA)", value=st.session_state.get("last_ticker", "ITSA4.SA"), key="ticker_input_widget").upper()
-default_end_date = datetime.today().date()
-default_start_date = default_end_date - timedelta(days=5*365 + 2)
-col_date1, col_date2 = st.sidebar.columns(2)
-start_date_input_sb = col_date1.date_input("Data Inicial Histórico", value=st.session_state.get("last_start_date", default_start_date), min_value=datetime(1990,1,1).date(), max_value=default_end_date - timedelta(days=1), key="start_date_widget")
-end_date_input_sb = col_date2.date_input("Data Final Histórico", value=st.session_state.get("last_end_date", default_end_date), min_value=start_date_input_sb + timedelta(days=1) if start_date_input_sb else datetime(1990,1,2).date(), max_value=default_end_date, key="end_date_widget")
+# Criar abas principais
+tab1, tab2, tab3 = st.tabs(["📊 Ranking de Ações", "💼 Otimizador de Portfólio", "📈 Simulação Histórica"])
 
-with st.sidebar.form(key="analysis_form"):
-    analyze_button_form = st.form_submit_button(label="🚀 Analisar Ação")
+# ===== TAB 1: RANKING DE AÇÕES =====
+with tab1:
+    st.header("📊 Ranking das Melhores Ações para Dividendos")
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.info("Analisando ações com histórico consistente de pagamento de dividendos")
+    with col2:
+        if st.button("🔄 Atualizar Ranking", type="primary"):
+            st.cache_data.clear()
+    
+    with st.spinner("Analisando ações... Isso pode levar alguns minutos..."):
+        progress_bar = st.progress(0)
+        df_ranking = analyze_all_stocks(progress_bar)
+        progress_bar.empty()
+    
+    if not df_ranking.empty:
+        # Salvar no session state
+        st.session_state['df_ranking'] = df_ranking
+        
+        # Mostrar estatísticas gerais
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total de Ações Analisadas", len(df_ranking))
+        col2.metric("DY Médio (12M)", f"{df_ranking['dy_12m'].mean():.2f}%")
+        col3.metric("Consistência Média", f"{df_ranking['consistencia'].mean():.1f}%")
+        col4.metric("CAGR Médio", f"{df_ranking['cagr_dividendos'].mean():.2f}%")
+        
+        # Filtros
+        st.subheader("🔍 Filtros")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            setores_disponiveis = ['Todos'] + sorted(df_ranking['setor'].unique().tolist())
+            setor_filtro = st.selectbox("Setor", setores_disponiveis)
+        
+        with col2:
+            dy_minimo = st.slider("DY Mínimo (12M)", 0.0, 15.0, 0.0, 0.5)
+        
+        with col3:
+            consistencia_minima = st.slider("Consistência Mínima (%)", 0, 100, 0, 10)
+        
+        # Aplicar filtros
+        df_filtrado = df_ranking.copy()
+        if setor_filtro != 'Todos':
+            df_filtrado = df_filtrado[df_filtrado['setor'] == setor_filtro]
+        df_filtrado = df_filtrado[df_filtrado['dy_12m'] >= dy_minimo]
+        df_filtrado = df_filtrado[df_filtrado['consistencia'] >= consistencia_minima]
+        df_filtrado = df_filtrado.sort_values('score', ascending=False)
+        
+        # Exibir ranking
+        st.subheader(f"🏆 Top Ações ({len(df_filtrado)} resultados)")
+        
+        # Preparar DataFrame para exibição
+        df_display = df_filtrado[['ticker', 'nome', 'setor', 'preco', 'dy_12m', 'dy_medio', 
+                                   'consistencia', 'cagr_dividendos', 'anos_com_div', 'score']].copy()
+        df_display.columns = ['Ticker', 'Nome', 'Setor', 'Preço (R$)', 'DY 12M (%)', 
+                              'DY Médio (%)', 'Consistência (%)', 'CAGR Div (%)', 
+                              'Anos c/ Div', 'Score']
+        
+        st.dataframe(
+            df_display.style.background_gradient(subset=['Score'], cmap='RdYlGn')
+                           .format({'Preço (R$)': 'R$ {:.2f}', 
+                                   'DY 12M (%)': '{:.2f}%',
+                                   'DY Médio (%)': '{:.2f}%',
+                                   'Consistência (%)': '{:.1f}%',
+                                   'CAGR Div (%)': '{:.2f}%',
+                                   'Score': '{:.2f}'}),
+            use_container_width=True,
+            height=400
+        )
+        
+        # Gráficos
+        st.subheader("📊 Visualizações")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fig_dy = px.bar(df_filtrado.head(10), x='ticker', y='dy_12m',
+                           title='Top 10 - Dividend Yield (12M)',
+                           labels={'dy_12m': 'DY (%)', 'ticker': 'Ação'},
+                           color='dy_12m', color_continuous_scale='RdYlGn')
+            st.plotly_chart(fig_dy, use_container_width=True)
+        
+        with col2:
+            fig_score = px.bar(df_filtrado.head(10), x='ticker', y='score',
+                              title='Top 10 - Score Geral',
+                              labels={'score': 'Score', 'ticker': 'Ação'},
+                              color='score', color_continuous_scale='Viridis')
+            st.plotly_chart(fig_score, use_container_width=True)
+        
+        # Análise por setor
+        st.subheader("📦 Análise por Setor")
+        df_setor = df_filtrado.groupby('setor').agg({
+            'dy_12m': 'mean',
+            'consistencia': 'mean',
+            'score': 'mean',
+            'ticker': 'count'
+        }).round(2)
+        df_setor.columns = ['DY Médio (%)', 'Consistência Média (%)', 'Score Médio', 'Qtd. Ações']
+        df_setor = df_setor.sort_values('Score Médio', ascending=False)
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            fig_setor = px.scatter(df_setor.reset_index(), x='DY Médio (%)', y='Consistência Média (%)',
+                                  size='Score Médio', color='setor', hover_name='setor',
+                                  title='Setores: DY vs Consistência')
+            st.plotly_chart(fig_setor, use_container_width=True)
+        
+        with col2:
+            st.dataframe(df_setor, use_container_width=True)
 
-if analyze_button_form:
-    st.session_state.last_ticker = ticker_input_sb
-    st.session_state.last_start_date = start_date_input_sb
-    st.session_state.last_end_date = end_date_input_sb
-
-active_ticker = st.session_state.get("last_ticker", None)
-active_start_date = st.session_state.get("last_start_date", None)
-active_end_date = st.session_state.get("last_end_date", None)
-
-if active_ticker and active_start_date and active_end_date:
-    if active_start_date >= active_end_date:
-        st.error("A data inicial deve ser anterior à data final.")
+# ===== TAB 2: OTIMIZADOR DE PORTFÓLIO =====
+with tab2:
+    st.header("💼 Otimizador de Portfólio")
+    
+    if 'df_ranking' not in st.session_state:
+        st.warning("⚠️ Por favor, gere o ranking de ações primeiro na aba 'Ranking de Ações'")
     else:
-        with st.spinner(f"Buscando e processando dados para {active_ticker}..."):
-            stock_obj = get_stock_object_yf(active_ticker)
-            if stock_obj is None:
-                st.error(f"Não foi possível obter informações para o ticker {active_ticker}. Verifique se o ticker é válido ou tente mais tarde.")
-            else:
-                info_data = get_stock_info_yf(stock_obj, active_ticker)
-                dy_l12m = "N/A"
-                if info_data and info_data.get('preco_atual') != "N/A" and isinstance(info_data.get('preco_atual'), (int,float)):
-                    dy_l12m = calculate_dy_last_12_months(stock_obj, info_data['preco_atual'], active_ticker)
+        df_ranking = st.session_state['df_ranking']
+        
+        # Inputs do usuário
+        st.subheader("💰 Configurações do Portfólio")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            capital_total = st.number_input(
+                "Capital Total para Investimento (R$)",
+                min_value=1000.0,
+                max_value=10000000.0,
+                value=50000.0,
+                step=1000.0,
+                format="%.2f"
+            )
+        
+        with col2:
+            lote_minimo = st.number_input(
+                "Lote Mínimo de Ações",
+                min_value=1,
+                max_value=1000,
+                value=100,
+                step=1
+            )
+        
+        with col3:
+            dy_minimo_port = st.slider(
+                "DY Mínimo para Seleção (%)",
+                0.0, 15.0, 4.0, 0.5
+            )
+        
+        # Botão para otimizar
+        if st.button("🚀 Otimizar Portfólio", type="primary"):
+            with st.spinner("Otimizando portfólio..."):
+                # Filtrar ações com DY mínimo
+                df_elegivel = df_ranking[df_ranking['dy_12m'] >= dy_minimo_port].copy()
                 
-                hist_prices_start_for_dy_calc = active_start_date - timedelta(days=400)
-                historical_prices_df = get_historical_prices_yf(stock_obj, hist_prices_start_for_dy_calc, active_end_date, active_ticker)
-                annual_dividends_df = get_dividend_data_yf(stock_obj, active_start_date, active_end_date, active_ticker)
-                df_historical_dys, avg_dy_hist, cagr_divs = calculate_historical_dy(annual_dividends_df, historical_prices_df)
-
-                if info_data:
-                    st.header(f"{info_data.get('nome_longo', active_ticker)} ({active_ticker})")
-                    st.caption(f"Setor: {info_data.get('setor', 'N/A')} | Indústria: {info_data.get('industria', 'N/A')} | [Website]({info_data.get('website', '#')})")
-                    if info_data.get('resumo_negocio') not in ['N/A', None, ""]:
-                        with st.expander("Resumo do Negócio"): st.write(info_data['resumo_negocio'])
-
-                    st.subheader("📈 Métricas de Valuation e Mercado (Atuais)")
-                    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                    preco_fmt = f"R$ {info_data.get('preco_atual', 'N/A')}" if isinstance(info_data.get('preco_atual'), (int, float)) else "N/A"
-                    col_m1.metric("Preço Atual", preco_fmt)
-                    col_m2.metric("DY (Últimos 12M)", f"{dy_l12m}%" if dy_l12m != "N/A" else "N/A")
-                    col_m3.metric("P/L (Trailing)", f"{info_data.get('pl_atual', 'N/A')}")
-                    col_m4.metric("P/VP", f"{info_data.get('pvp_atual', 'N/A')}")
-                    col_m5, col_m6, col_m7 = st.columns(3)
-                    p_fmt = f"{info_data.get('payout_ratio', 'N/A')}%" if info_data.get('payout_ratio') != "N/A" else "N/A"
-                    if info_data.get('payout_ratio') != "N/A":
-                        try:
-                            p_val = float(info_data['payout_ratio']);
-                            if p_val > 100 or p_val < 0 : p_fmt += " ⚠️"
-                        except ValueError: pass
-                    col_m5.metric("Payout Ratio", p_fmt)
-                    col_m6.metric("Beta (vs Ibov)", f"{info_data.get('beta', 'N/A')}")
-                    mc_val = info_data.get('market_cap', 0)
-                    mc_fmt = f"R$ {mc_val:,.0f}" if isinstance(mc_val, (int, float)) and mc_val > 0 else "N/A"
-                    col_m7.metric("Market Cap", mc_fmt)
-
-                    st.subheader("🚦 Avaliação de Indicadores Chave (Heurísticas)")
-                    alerts = []
-                    if dy_l12m != "N/A" and avg_dy_hist != "N/A":
-                        try:
-                            dy_a, dy_h, thr = float(dy_l12m), float(avg_dy_hist), 0.20
-                            if dy_a < 2.0: alerts.append(f"🔸 **DY Atual ({dy_a:.2f}%) baixo.**")
-                            elif dy_a > dy_h * (1 + thr): alerts.append(f"✅ **DY Atual ({dy_a:.2f}%) > Média Hist. ({dy_h:.2f}%).**")
-                            elif dy_a < dy_h * (1 - thr): alerts.append(f"⚠️ **DY Atual ({dy_a:.2f}%) < Média Hist. ({dy_h:.2f}%).**")
-                        except ValueError: pass
-                    if info_data.get('payout_ratio') != "N/A":
-                        try:
-                            p = float(info_data['payout_ratio'])
-                            if p > 85 and p <=100: alerts.append(f"🔸 **Payout ({p:.0f}%) elevado.**")
-                            elif p > 100: alerts.append(f"🔥 **Payout ({p:.0f}%) > 100%!**")
-                            elif p < 0: alerts.append(f"🔥 **Payout ({p:.0f}%) negativo!**")
-                        except ValueError: pass
-                    if info_data.get('pl_atual') != "N/A":
-                        try:
-                            pl_v = float(info_data['pl_atual'])
-                            if pl_v < 0: alerts.append(f"🔥 **P/L Negativo ({pl_v:.2f}).**")
-                            elif pl_v < 5 and pl_v > 0: alerts.append(f"✅ **P/L Baixo ({pl_v:.2f}).**")
-                            elif pl_v > 20: alerts.append(f"🔸 **P/L Elevado ({pl_v:.2f}).**")
-                        except ValueError: pass
-                    if not alerts: st.info("Nenhum alerta específico dos indicadores chave. Faça sua análise completa.")
+                if df_elegivel.empty:
+                    st.error("Nenhuma ação encontrada com o DY mínimo especificado. Tente reduzir o valor.")
+                else:
+                    # Otimizar
+                    portfolio = optimize_portfolio(df_elegivel, capital_total, lote_minimo)
+                    
+                    if portfolio is not None and not portfolio.empty:
+                        st.session_state['portfolio_otimizado'] = portfolio
+                        st.success("✅ Portfólio otimizado com sucesso!")
                     else:
-                        for m in alerts:
-                            if "🔥" in m: st.error(m)
-                            elif "⚠️" in m: st.warning(m)
-                            elif "🔸" in m: st.warning(m)
-                            else: st.success(m)
-                    st.caption("*Heurísticas são simplificações e não substituem análise aprofundada.*")
+                        st.error("Não foi possível criar um portfólio com os parâmetros especificados.")
+        
+        # Exibir portfólio otimizado
+        if 'portfolio_otimizado' in st.session_state:
+            portfolio = st.session_state['portfolio_otimizado']
+            
+            st.subheader("📋 Portfólio Otimizado")
+            
+            # Métricas gerais
+            total_investido = portfolio['valor_investido'].sum()
+            dy_medio_carteira = (portfolio['dividendos_anuais_estimados'].sum() / total_investido) * 100
+            dividendos_anuais = portfolio['dividendos_anuais_estimados'].sum()
+            dividendos_mensais = dividendos_anuais / 12
+            
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("💰 Total Investido", f"R$ {total_investido:,.2f}")
+            col2.metric("📊 DY Médio da Carteira", f"{dy_medio_carteira:.2f}%")
+            col3.metric("📅 Dividendos/Ano", f"R$ {dividendos_anuais:,.2f}")
+            col4.metric("📆 Dividendos/Mês (Estimado)", f"R$ {dividendos_mensais:,.2f}")
+            
+            # Tabela de alocação
+            st.subheader("🎯 Alocação Detalhada")
+            
+            df_port_display = portfolio[['ticker', 'nome', 'setor', 'preco', 'quantidade', 
+                                         'valor_investido', 'percentual_carteira', 'dy_12m',
+                                         'dividendos_anuais_estimados']].copy()
+            df_port_display.columns = ['Ticker', 'Nome', 'Setor', 'Preço (R$)', 'Quantidade',
+                                       'Valor Investido (R$)', '% Carteira', 'DY 12M (%)',
+                                       'Dividendos/Ano (R$)']
+            
+            st.dataframe(
+                df_port_display.style.format({
+                    'Preço (R$)': 'R$ {:.2f}',
+                    'Valor Investido (R$)': 'R$ {:.2f}',
+                    '% Carteira': '{:.1f}%',
+                    'DY 12M (%)': '{:.2f}%',
+                    'Dividendos/Ano (R$)': 'R$ {:.2f}'
+                }).background_gradient(subset=['% Carteira'], cmap='Blues'),
+                use_container_width=True
+            )
+            
+            # Gráficos
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                fig_pizza = px.pie(df_port_display, values='Valor Investido (R$)', names='Ticker',
+                                   title='Distribuição do Capital por Ação')
+                st.plotly_chart(fig_pizza, use_container_width=True)
+            
+            with col2:
+                fig_setor = px.pie(df_port_display, values='Valor Investido (R$)', names='Setor',
+                                   title='Distribuição do Capital por Setor')
+                st.plotly_chart(fig_setor, use_container_width=True)
+            
+            # Calendário de dividendos
+            st.subheader("📅 Calendário Estimado de Dividendos")
+            st.info("Baseado no padrão de pagamentos dos últimos 24 meses")
+            
+            calendario = create_dividend_calendar(portfolio)
+            if calendario is not None and not calendario.empty:
+                # Gráfico mensal
+                fig_calendario = px.bar(calendario, x='mes', y='valor_estimado',
+                                       title='Fluxo Mensal Estimado de Dividendos',
+                                       labels={'valor_estimado': 'Valor (R$)', 'mes': 'Mês'},
+                                       text='valor_estimado')
+                fig_calendario.update_traces(texttemplate='R$ %{text:.0f}', textposition='outside')
+                st.plotly_chart(fig_calendario, use_container_width=True)
+                
+                # Tabela detalhada
+                with st.expander("📊 Detalhes Mensais"):
+                    df_cal_display = calendario[['mes', 'valor_estimado', 'acoes_pagantes']].copy()
+                    df_cal_display.columns = ['Mês', 'Valor Estimado (R$)', 'Ações Pagantes']
+                    st.dataframe(
+                        df_cal_display.style.format({'Valor Estimado (R$)': 'R$ {:.2f}'}),
+                        use_container_width=True
+                    )
+            else:
+                st.warning("Não foi possível gerar o calendário de dividendos")
+            
+            # Botão para baixar portfólio
+            st.subheader("💾 Exportar Portfólio")
+            csv = df_port_display.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Baixar Portfólio (CSV)",
+                data=csv,
+                file_name=f"portfolio_dividendos_{datetime.today().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
 
-                    st.subheader("📜 Análise de Dividendos, Preços e Fibonacci")
-                    tab1, tab2, tab3, tab4 = st.tabs(["📊 Dividendos", "💹 DY Histórico", "📈 Preços", "📉 Fibonacci"])
-                    with tab1:
-                        if annual_dividends_df is not None and not annual_dividends_df.empty:
-                            valid_div_y = annual_dividends_df[pd.to_numeric(annual_dividends_df['Dividendos Anuais (R$)'], errors='coerce').fillna(0) > 0]
-                            st.metric(f"CAGR dos Dividendos Anuais ({len(valid_div_y)} anos com div > 0)", f"{cagr_divs}%" if cagr_divs != "N/A" else "N/A")
-                            fig_ad = px.bar(annual_dividends_df, x='Ano', y='Dividendos Anuais (R$)', title=f"Dividendos Anuais Pagos por {active_ticker}")
-                            st.plotly_chart(fig_ad, use_container_width=True)
-                            with st.expander("Dados de Dividendos Anuais"): st.dataframe(annual_dividends_df.set_index('Ano'))
-                        else: st.info(f"Sem dados de dividendos para {active_ticker} no período.")
-                    with tab2:
-                        if df_historical_dys is not None and not df_historical_dys.empty:
-                            n_v_dy = len(df_historical_dys[pd.to_numeric(df_historical_dys['DY Anual (%)'], errors='coerce').notna()])
-                            st.metric(f"DY Médio Histórico ({n_v_dy} anos)", f"{avg_dy_hist}%" if avg_dy_hist != "N/A" else "N/A")
-                            df_p_dy = df_historical_dys[pd.to_numeric(df_historical_dys['DY Anual (%)'], errors='coerce').notna()].copy()
-                            if not df_p_dy.empty:
-                                df_p_dy['DY Anual (%)'] = pd.to_numeric(df_p_dy['DY Anual (%)'])
-                                fig_dy_h = px.bar(df_p_dy, x='Ano', y='DY Anual (%)', title=f"DY Anual Histórico de {active_ticker}", text='DY Anual (%)')
-                                fig_dy_h.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
-                                if avg_dy_hist != "N/A": fig_dy_h.add_hline(y=float(avg_dy_hist), line_dash="dash", line_color="red", annotation_text=f"Média Hist: {avg_dy_hist}%")
-                                st.plotly_chart(fig_dy_h, use_container_width=True)
-                            with st.expander("Dados de DY Histórico Detalhado"): st.dataframe(df_historical_dys.set_index('Ano'))
-                        else: st.info(f"Não foi possível calcular DY histórico para {active_ticker}.")
-                    with tab3:
-                        if historical_prices_df is not None and not historical_prices_df.empty:
-                            prices_idx_tz = historical_prices_df.index.tz
-                            start_dt_plot = pd.to_datetime(active_start_date).tz_localize(prices_idx_tz if prices_idx_tz else None)
-                            end_dt_plot = pd.to_datetime(active_end_date).tz_localize(prices_idx_tz if prices_idx_tz else None)
-                            prices_plot = historical_prices_df[(historical_prices_df.index >= start_dt_plot) & (historical_prices_df.index <= end_dt_plot)]
-                            if not prices_plot.empty:
-                                fig_p = go.Figure(data=[go.Scatter(x=prices_plot.index, y=prices_plot['Close'], name='Preço')])
-                                fig_p.update_layout(title=f"Preço de Fechamento de {active_ticker}", xaxis_rangeslider_visible=True)
-                                st.plotly_chart(fig_p, use_container_width=True)
-                            else: st.info("Sem dados de preço para o período de visualização.")
-                        else: st.info(f"Sem dados de preço para {active_ticker} no período histórico.")
-                    with tab4: # Fibonacci
-                        st.subheader(f"Análise de Fibonacci para {active_ticker}")
-                        if historical_prices_df is not None and not historical_prices_df.empty:
-                            prices_idx_tz_fib = historical_prices_df.index.tz
-                            start_dt_fib = pd.to_datetime(active_start_date).tz_localize(prices_idx_tz_fib if prices_idx_tz_fib else None)
-                            end_dt_fib = pd.to_datetime(active_end_date).tz_localize(prices_idx_tz_fib if prices_idx_tz_fib else None)
-                            prices_fib_calc = historical_prices_df[(historical_prices_df.index >= start_dt_fib) & (historical_prices_df.index <= end_dt_fib)]['Close']
-                            if not prices_fib_calc.empty and len(prices_fib_calc) > 1:
-                                retracements, projections = calculate_fibonacci_levels(prices_fib_calc)
-                                fig_f = go.Figure()
-                                fig_f.add_trace(go.Scatter(x=prices_fib_calc.index, y=prices_fib_calc, mode='lines', name='Preço', line=dict(color='blue')))
-                                current_p_fib = info_data.get('preco_atual', prices_fib_calc.iloc[-1])
-                                if retracements:
-                                    st.write("**Níveis de Retração Fibonacci (Suporte/Resistência):**")
-                                    cols_r = st.columns(len(retracements))
-                                    for i, (lvl_n, lvl_p) in enumerate(retracements.items()):
-                                        fig_f.add_hline(y=lvl_p, line_dash="dash", annotation_text=f"{lvl_n}: {lvl_p:.2f}", line_color='rgba(255,165,0,0.7)')
-                                        cols_r[i].metric(f"Ret. {lvl_n}", f"R$ {lvl_p:.2f}", f"{((current_p_fib / lvl_p) - 1)*100 if lvl_p > 0 else 0:.1f}% vs Atual", delta_color="off" if "Mín" in lvl_n or "Máx" in lvl_n else ("normal" if current_p_fib >= lvl_p else "inverse"))
-                                if projections:
-                                    st.write("**Níveis de Projeção Fibonacci (Alvos Potenciais em Alta):**")
-                                    cols_p = st.columns(len(projections))
-                                    for i, (lvl_n, lvl_p) in enumerate(projections.items()):
-                                        if lvl_p > prices_fib_calc.max(): fig_f.add_hline(y=lvl_p, line_dash="dot", annotation_text=f"Proj. {lvl_n}: {lvl_p:.2f}", line_color='rgba(0,128,0,0.7)')
-                                        cols_p[i].metric(f"Proj. {lvl_n}", f"R$ {lvl_p:.2f}", f"{((lvl_p / current_p_fib) - 1)*100 if current_p_fib > 0 else 0:.1f}% Potencial", delta_color="normal")
-                                fig_f.update_layout(title=f"Preço de {active_ticker} com Níveis Fibonacci", xaxis_rangeslider_visible=True, height=600)
-                                st.plotly_chart(fig_f, use_container_width=True)
-                                st.caption("Fibonacci traçado com base no máx/mín do período selecionado. Interprete com cautela.")
-                            else: st.info("Dados insuficientes para Fibonacci no período.")
-                        else: st.info(f"Sem dados de preço para Fibonacci para {active_ticker}.")
-
-                    st.subheader("📝 Minhas Anotações e Avaliação (Simulação)")
-                    form_key_notes = f"form_anotacoes_{active_ticker}"
-                    with st.form(key=form_key_notes):
-                        notes_key = f"notes_text_area_{active_ticker}"
-                        decision_key = f"decision_selectbox_{active_ticker}"
-                        user_notes = st.text_area("Observações:", value=st.session_state.get(notes_key, ""), height=100, key=notes_key + "_widget")
-                        options = ["Não Avaliado", "Monitorar", "Potencial Compra", "Manter Posição", "Potencial Venda", "Evitar"]
-                        idx = options.index(st.session_state.get(decision_key, "Não Avaliado")) if st.session_state.get(decision_key, "Não Avaliado") in options else 0
-                        user_decision = st.selectbox("Minha Avaliação:", options=options, index=idx, key=decision_key + "_widget")
-                        if st.form_submit_button(f"Salvar para {active_ticker}"):
-                            st.session_state[notes_key], st.session_state[decision_key] = user_notes, user_decision
-                            if 'portfolio_simulado' not in st.session_state: st.session_state.portfolio_simulado = {}
-                            st.session_state.portfolio_simulado[active_ticker] = {'nome': info_data.get('nome_longo', active_ticker), 'avaliacao': user_decision, 'notas': user_notes}
-                            st.success(f"Anotações para {active_ticker} salvas!")
-                else: # if info_data
-                    st.error(f"Não foi possível carregar informações de base para {active_ticker}. Verifique o ticker ou a conexão.")
-elif not active_ticker and st.session_state.get("analyze_button_form"): # Se botão foi clicado mas ticker está vazio
-    st.warning("Por favor, insira um ticker para análise.")
-elif "last_ticker" not in st.session_state : # Estado inicial absoluto
-    st.info("⬅️ Utilize a barra lateral para inserir um ticker, ajustar o período e clique em 'Analisar Ação'.")
-
-st.sidebar.markdown("---")
-st.sidebar.header("📋 Resumo do Portfólio Avaliado")
-if 'portfolio_simulado' in st.session_state and st.session_state.portfolio_simulado:
-    for t_sb, d_sb in st.session_state.portfolio_simulado.items():
-        st.sidebar.markdown(f"**{d_sb.get('nome', t_sb)}:** {d_sb.get('avaliacao', 'N/A')}")
-    if st.sidebar.button("Limpar Portfólio Avaliado", key="clear_portfolio_sb_btn_widget"):
-        st.session_state.portfolio_simulado = {}
-        keys_del = [k for k in st.session_state.keys() if "_notes_area_" in k or "_decision_selectbox_" in k or "last_" in k]
-        for k_del_item in keys_del: del st.session_state[k_del_item]
-        st.rerun()
-else:
-    st.sidebar.info("Nenhuma ação avaliada e salva na sessão ainda.")
+# ===== TAB 3: SIMULAÇÃO HISTÓRICA =====
+with tab3:
+    st.header("📈 Simulação Histórica do Portfólio")
+    
+    if 'portfolio_otimizado' not in st.session_state:
+        st.warning("⚠️ Por favor, otimize um portfólio primeiro na aba 'Otimizador de Portfólio'")
+    else:
+        portfolio = st.session_state['portfolio_otimizado']
+        
+        st.info("Simulação do desempenho do portfólio nos últimos 5 anos com os dividendos realmente pagos")
+        
+        anos_simulacao = st.slider("Anos de Histórico", 1, 5, 5)
+        
+        if st.button("📊 Simular Histórico", type="primary"):
+            with st.spinner("Simulando histórico..."):
+                df_monthly, df_annual = simulate_portfolio_history(portfolio, anos_simulacao)
+                
+                if df_monthly is not None and not df_monthly.empty:
+                    st.session_state['simulacao_monthly'] = df_monthly
+                    st.session_state['simulacao_annual'] = df_annual
+                    st.success("✅ Simulação concluída!")
+                else:
+                    st.error("Não foi possível simular o histórico")
+        
+        if 'simulacao_monthly' in st.session_state:
+            df_monthly = st.session_state['simulacao_monthly']
+            df_annual = st.session_state['simulacao_annual']
+            
+            # Métricas gerais
+            total_dividendos = df_annual['dividendos'].sum()
+            media_anual = df_annual['dividendos'].mean()
+            media_mensal = df_monthly['dividendos'].mean()
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("💰 Total de Dividendos Recebidos", f"R$ {total_dividendos:,.2f}")
+            col2.metric("📅 Média Anual", f"R$ {media_anual:,.2f}")
+            col3.metric("📆 Média Mensal", f"R$ {media_mensal:,.2f}")
+            
+            # Gráfico anual
+            st.subheader("📊 Dividendos Anuais Históricos")
+            fig_annual = px.bar(df_annual, x='ano', y='dividendos',
+                               title='Dividendos Recebidos por Ano',
+                               labels={'dividendos': 'Dividendos (R$)', 'ano': 'Ano'},
+                               text='dividendos')
+            fig_annual.update_traces(texttemplate='R$ %{text:,.0f}', textposition='outside')
+            st.plotly_chart(fig_annual, use_container_width=True)
+            
+            # Gráfico mensal
+            st.subheader("📈 Evolução Mensal dos Dividendos")
+            fig_monthly = go.Figure()
+            fig_monthly.add_trace(go.Scatter(x=df_monthly['mes'], y=df_monthly['dividendos'],
+                                           mode='lines+markers', name='Dividendos'))
+            fig_monthly.add_hline(y=media_mensal, line_dash="dash", line_color="red",
+                                 annotation_text=f"Média: R$ {media_mensal:.2f}")
+            fig_monthly.update_layout(title='Dividendos Mensais Históricos',
+                                     xaxis_title='Mês', yaxis_title='Dividendos (R$)')
+            st.plotly_chart(fig_monthly, use_container_width=True)
+            
+            # Análise estatística
+            st.subheader("📊 Análise Estatística")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Dividendos Anuais:**")
+                stats_annual = df_annual['dividendos'].describe()
+                st.dataframe(
+                    pd.DataFrame({
+                        'Estatística': ['Média', 'Mediana', 'Desvio Padrão', 'Mínimo', 'Máximo'],
+                        'Valor (R$)': [
+                            stats_annual['mean'],
+                            df_annual['dividendos'].median(),
+                            stats_annual['std'],
+                            stats_annual['min'],
+                            stats_annual['max']
+                        ]
+                    }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
+                    use_container_width=True
+                )
+            
+            with col2:
+                st.write("**Dividendos Mensais:**")
+                stats_monthly = df_monthly['dividendos'].describe()
+                st.dataframe(
+                    pd.DataFrame({
+                        'Estatística': ['Média', 'Mediana', 'Desvio Padrão', 'Mínimo', 'Máximo'],
+                        'Valor (R$)': [
+                            stats_monthly['mean'],
+                            df_monthly['dividendos'].median(),
+                            stats_monthly['std'],
+                            stats_monthly['min'],
+                            stats_monthly['max']
+                        ]
+                    }).style.format({'Valor (R$)': 'R$ {:.2f}'}),
+                    use_container_width=True
+                )
+            
+            # Análise de rentabilidade
+            st.subheader("💹 Análise de Rentabilidade")
+            
+            portfolio_total = st.session_state.get('portfolio_otimizado', pd.DataFrame())
+            if not portfolio_total.empty:
+                valor_investido_total = portfolio_total['valor_investido'].sum()
+                
+                col1, col2, col3 = st.columns(3)
+                
+                roi_total = (total_dividendos / valor_investido_total) * 100
+                roi_anual = roi_total / anos_simulacao
+                
+                col1.metric("💼 Valor Investido", f"R$ {valor_investido_total:,.2f}")
+                col2.metric("📈 ROI Total (Dividendos)", f"{roi_total:.2f}%")
+                col3.metric("📅 ROI Médio Anual", f"{roi_anual:.2f}%")
+                
+                st.info(f"""
+                **Interpretação:** 
+                - Nos últimos {anos_simulacao} anos, você teria recebido R$ {total_dividendos:,.2f} em dividendos
+                - Isso representa um retorno de {roi_total:.2f}% sobre o capital investido (apenas dividendos)
+                - Média anual de {roi_anual:.2f}% em dividendos
+                - **Importante:** Esta análise considera apenas dividendos, não inclui valorização/desvalorização das ações
+                """)
 
 st.markdown("---")
-st.caption("Desenvolvido como ferramenta educacional. Dados via Yahoo Finance. Não constitui recomendação de investimento.")
+st.caption("""
+**Aviso Legal:** Esta ferramenta é apenas para fins educacionais e informativos. 
+Os dados são obtidos do Yahoo Finance e podem conter imprecisões. 
+As projeções são baseadas em dados históricos e não garantem resultados futuros.
+Não constitui recomendação de investimento. Consulte um assessor financeiro qualificado.
+""")
