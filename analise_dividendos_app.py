@@ -75,14 +75,24 @@ def categorize_ticker(ticker):
 
 @st.cache_resource(ttl=1800)
 def get_stock_object_yf(ticker_symbol):
-    """Retorna o objeto Ticker do yfinance."""
-    try:
-        stock = yf.Ticker(ticker_symbol)
-        if hasattr(stock, 'info') and stock.info:
-            return stock
-        return None
-    except Exception:
-        return None
+    """Retorna o objeto Ticker do yfinance com retry."""
+    import time
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            stock = yf.Ticker(ticker_symbol)
+            # Forçar download de dados para validar ticker
+            _ = stock.history(period="5d")
+            if hasattr(stock, 'info'):
+                return stock
+            return None
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(1)  # Aguardar antes de tentar novamente
+                continue
+            return None
+    return None
 
 @st.cache_data(ttl=1800)
 def get_stock_info_yf(_stock_obj, ticker_symbol):
@@ -90,46 +100,81 @@ def get_stock_info_yf(_stock_obj, ticker_symbol):
     if _stock_obj is None:
         return None
     try:
-        info = _stock_obj.info
+        # Tentar obter info de múltiplas formas
+        info = {}
+        try:
+            info = _stock_obj.info
+        except:
+            # Fallback: obter preço do histórico recente
+            hist = _stock_obj.history(period="5d")
+            if not hist.empty:
+                info = {'currentPrice': hist['Close'].iloc[-1]}
+        
         if not info:
             return None
+        
+        # Obter preço de forma mais robusta
+        preco = info.get('regularMarketPrice') or info.get('currentPrice') or info.get('previousClose', 0)
+        
+        # Se ainda não temos preço, tentar do histórico
+        if preco == 0:
+            try:
+                hist = _stock_obj.history(period="5d")
+                if not hist.empty:
+                    preco = hist['Close'].iloc[-1]
+            except:
+                pass
         
         data = {
             "ticker": ticker_symbol,
             "nome_longo": info.get('longName', info.get('shortName', ticker_symbol)),
             "setor": info.get('sector', 'N/A'),
-            "preco_atual": info.get('regularMarketPrice', info.get('currentPrice', 0)),
+            "preco_atual": float(preco) if preco else 0,
             "pl_atual": info.get('trailingPE', 0),
             "payout_ratio": info.get('payoutRatio', 0) * 100 if info.get('payoutRatio') else 0
         }
         return data
-    except Exception:
+    except Exception as e:
         return None
 
 @st.cache_data(ttl=1800)
 def get_dividends_history(_stock_obj, years=5):
-    """Busca histórico de dividendos."""
+    """Busca histórico de dividendos com retry."""
     if _stock_obj is None:
         return pd.DataFrame()
     
-    try:
-        end_date = datetime.today()
-        start_date = end_date - timedelta(days=years*365 + 100)
-        dividends = _stock_obj.dividends
-        
-        if dividends.empty:
+    import time
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            end_date = datetime.today()
+            start_date = end_date - timedelta(days=years*365 + 100)
+            
+            # Usar .dividends com retry
+            dividends = _stock_obj.dividends
+            
+            if dividends is None or dividends.empty:
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                return pd.DataFrame()
+            
+            # Filtrar período
+            dividends_index = dividends.index.tz_localize(None) if dividends.index.tz else dividends.index
+            start_dt = pd.to_datetime(start_date)
+            end_dt = pd.to_datetime(end_date)
+            
+            dividends_filtered = dividends[(dividends_index >= start_dt) & (dividends_index <= end_dt)]
+            
+            return dividends_filtered
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
             return pd.DataFrame()
-        
-        # Filtrar período
-        dividends_index = dividends.index.tz_localize(None) if dividends.index.tz else dividends.index
-        start_dt = pd.to_datetime(start_date)
-        end_dt = pd.to_datetime(end_date)
-        
-        dividends_filtered = dividends[(dividends_index >= start_dt) & (dividends_index <= end_dt)]
-        
-        return dividends_filtered
-    except Exception:
-        return pd.DataFrame()
+    
+    return pd.DataFrame()
 
 @st.cache_data(ttl=1800)
 def calculate_dividend_metrics(ticker_symbol, years=5):
@@ -197,18 +242,40 @@ def calculate_dividend_metrics(ticker_symbol, years=5):
         'dividends_history': dividends
     }
 
-def analyze_selected_stocks(selected_tickers, progress_bar=None):
-    """Analisa os tickers selecionados."""
+def analyze_selected_stocks(selected_tickers, progress_bar=None, status_container=None):
+    """Analisa os tickers selecionados com feedback detalhado."""
     results = []
+    failed_tickers = []
     total = len(selected_tickers)
     
     for idx, ticker in enumerate(selected_tickers):
         if progress_bar:
-            progress_bar.progress((idx + 1) / total, f"Analisando {ticker}...")
+            progress_bar.progress((idx + 1) / total, f"Analisando {ticker}... ({idx + 1}/{total})")
         
-        metrics = calculate_dividend_metrics(ticker)
-        if metrics:
-            results.append(metrics)
+        if status_container:
+            status_container.info(f"🔍 Baixando dados de {ticker}...")
+        
+        try:
+            metrics = calculate_dividend_metrics(ticker)
+            if metrics:
+                results.append(metrics)
+                if status_container:
+                    status_container.success(f"✅ {ticker} analisado com sucesso!")
+            else:
+                failed_tickers.append(ticker)
+                if status_container:
+                    status_container.warning(f"⚠️ {ticker} sem dados de dividendos")
+        except Exception as e:
+            failed_tickers.append(ticker)
+            if status_container:
+                status_container.error(f"❌ Erro ao analisar {ticker}: {str(e)}")
+    
+    # Mostrar resumo ao final
+    if status_container:
+        if results:
+            status_container.success(f"✅ **Sucesso:** {len(results)} ativos analisados com sucesso!")
+        if failed_tickers:
+            status_container.warning(f"⚠️ **Aviso:** {len(failed_tickers)} ativos não puderam ser analisados: {', '.join(failed_tickers[:10])}")
     
     return pd.DataFrame(results)
 
@@ -412,16 +479,28 @@ with tab1:
                 
                 st.info(f"✅ Encontrados {len(filtered_tickers)} ativos para análise")
                 
-                # Analisar
+                # Analisar com feedback detalhado
                 progress_bar = st.progress(0)
-                df_ranking = analyze_selected_stocks(filtered_tickers, progress_bar)
+                status_container = st.empty()
+                
+                with st.spinner("🔄 Baixando dados do Yahoo Finance..."):
+                    df_ranking = analyze_selected_stocks(filtered_tickers, progress_bar, status_container)
+                
                 progress_bar.empty()
+                status_container.empty()
                 
                 if not df_ranking.empty:
                     st.session_state['df_ranking'] = df_ranking
                     st.success(f"✅ Análise concluída! {len(df_ranking)} ativos com dados de dividendos.")
                 else:
-                    st.error("Nenhum ativo com dados de dividendos encontrado.")
+                    st.error("❌ Nenhum ativo com dados de dividendos encontrado. Possíveis causas:")
+                    st.warning("""
+                    **Soluções possíveis:**
+                    1. Verifique sua conexão com a internet
+                    2. O Yahoo Finance pode estar temporariamente indisponível
+                    3. Tente novamente em alguns minutos
+                    4. Limpe o cache do app (barra lateral → Settings → Clear cache)
+                    """)
     
     if 'df_ranking' in st.session_state:
         df_ranking = st.session_state['df_ranking']
