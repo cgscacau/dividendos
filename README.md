@@ -2,9 +2,22 @@
 
 ## 🚀 Acesso Rápido
 
-**📱 Aplicativo Online:** https://8501-itf3xysvgh1hx79t5ys0g-c81df28e.sandbox.novita.ai
+**📱 Como Acessar o Aplicativo Online:**
 
-**🔥 Última Atualização:** Correção crítica aplicada - aplicativo funcionando 100%!
+### Opção 1: Streamlit Cloud (Recomendado)
+1. Acesse: [Streamlit Cloud](https://share.streamlit.io/)
+2. Faça deploy do repositório: `https://github.com/cgscacau/dividendos`
+3. Arquivo principal: `analise_dividendos_app.py`
+
+### Opção 2: Executar Localmente
+```bash
+git clone https://github.com/cgscacau/dividendos.git
+cd dividendos
+pip install -r requirements.txt
+streamlit run analise_dividendos_app.py
+```
+
+**🔥 Última Atualização:** Deploy configurado - pronto para Streamlit Cloud!
 
 ## ✨ O Que Este Aplicativo Faz?
 
@@ -309,7 +322,9 @@ Empresas globais:
 - **Score**: Métrica que combina DY, Consistência e CAGR
 - **Lote**: Quantidade mínima para negociação
 
-## 🔧 Instalação Local
+## 🔧 Instalação e Deploy
+
+### 🏠 Instalação Local
 
 ```bash
 # Clone o repositório
@@ -322,6 +337,31 @@ pip install -r requirements.txt
 # Execute o aplicativo
 streamlit run analise_dividendos_app.py
 ```
+
+### ☁️ Deploy no Streamlit Cloud (GRÁTIS!)
+
+**Passo a Passo:**
+
+1. **Criar conta no Streamlit Cloud**
+   - Acesse: https://share.streamlit.io/
+   - Faça login com sua conta GitHub
+
+2. **Fazer Deploy**
+   - Clique em "New app"
+   - Selecione o repositório: `cgscacau/dividendos`
+   - Branch: `main`
+   - Arquivo principal: `analise_dividendos_app.py`
+   - Clique em "Deploy!"
+
+3. **Pronto!**
+   - Seu app estará online em poucos minutos
+   - URL no formato: `https://seu-app.streamlit.app`
+   - Atualiza automaticamente a cada commit no GitHub
+
+**Arquivos de Configuração Incluídos:**
+- ✅ `.streamlit/config.toml` - Configurações de tema e servidor
+- ✅ `requirements.txt` - Todas as dependências necessárias
+- ✅ `.gitignore` - Arquivos que não devem ir para o repositório
 
 ## 📦 Dependências
 
