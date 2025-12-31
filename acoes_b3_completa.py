@@ -11,7 +11,7 @@ def get_acoes_b3_completas():
         "ITUB3.SA", "ITUB4.SA", "BBDC3.SA", "BBDC4.SA", "BBAS3.SA", 
         "SANB11.SA", "BPAC11.SA", "BRSR6.SA", "PINE4.SA", "BMGB4.SA",
         "BBSE3.SA", "PSSA3.SA", "SULA11.SA", "WIZS3.SA", "BPAN4.SA",
-        "CIEL3.SA", "CIELO3.SA", "PAGSEGURO31.SA", "STBP3.SA",
+        "CIEL3.SA",  # Removidos: CIELO3, PAGSEGURO31, STBP3 (delisted)
         
         # === PETRÓLEO, GÁS E COMBUSTÍVEIS ===
         "PETR3.SA", "PETR4.SA", "PRIO3.SA", "RECV3.SA", "RRRP3.SA",
@@ -21,7 +21,7 @@ def get_acoes_b3_completas():
         # === MINERAÇÃO E SIDERURGIA ===
         "VALE3.SA", "BRAP3.SA", "BRAP4.SA", "GOAU4.SA", "CMIN3.SA", 
         "GGBR3.SA", "GGBR4.SA", "USIM3.SA", "USIM5.SA", "CSNA3.SA",
-        "GERDAUGMET3.SA", "FESA3.SA", "FESA4.SA",
+        "FESA3.SA", "FESA4.SA",  # Removido: GERDAUGMET3 (delisted)
         
         # === ENERGIA ELÉTRICA ===
         "ELET3.SA", "ELET6.SA", "TAEE11.SA", "TAEE3.SA", "TAEE4.SA",
@@ -30,26 +30,26 @@ def get_acoes_b3_completas():
         "TIET3.SA", "TIET4.SA", "TRPL3.SA", "TRPL4.SA", "LIGT3.SA",
         "ALUP11.SA", "ALUP3.SA", "ALUP4.SA", "COCE3.SA", "COCE5.SA",
         "ENGI11.SA", "ENGI3.SA", "ENGI4.SA", "EQTL3.SA", "MEGA3.SA",
-        "RNEW11.SA", "RNEW3.SA", "RNEW4.SA", "AESB3.SA", "AURE3.SA",
+        "RNEW3.SA", "RNEW4.SA", "AESB3.SA", "AURE3.SA",  # Removido: RNEW11 (delisted)
         
         # === SANEAMENTO ===
         "SAPR11.SA", "SAPR3.SA", "SAPR4.SA", "SBSP3.SA", "CSMG3.SA",
-        "CGNA3.SA", "SANEPAR.SA",
+        # Removidos: CGNA3, SANEPAR (delisted)
         
         # === TELECOMUNICAÇÕES ===
         "TIMS3.SA", "VIVT3.SA", "OIBR3.SA", "OIBR4.SA", "TELB4.SA",
         
         # === CONSUMO (Alimentos e Bebidas) ===
-        "ABEV3.SA", "JBSS3.SA", "BEEF3.SA", "MRFG3.SA", "SMTO3.SA",
-        "NTCO3.SA", "CAML3.SA", "MDIA3.SA", "SLCE3.SA", "LAND3.SA",
-        "M3LK3.SA", "JALL3.SA", "BLAU3.SA",
+        "ABEV3.SA", "BEEF3.SA", "SMTO3.SA",
+        "CAML3.SA", "MDIA3.SA", "SLCE3.SA", "LAND3.SA",
+        "JALL3.SA", "BLAU3.SA",  # Removidos: JBSS3, MRFG3, NTCO3, M3LK3 (delisted)
         
         # === VAREJO ===
         "LREN3.SA", "MGLU3.SA", "VVAR3.SA", "PETZ3.SA", "SOMA3.SA", 
         "GUAR3.SA", "VIIA3.SA", "CEAB3.SA", "VULC3.SA", "GRND3.SA",
-        "AMER3.SA", "ARZZ3.SA", "CRFB3.SA", "IGTI11.SA", "IGTI3.SA",
-        "AMAR3.SA", "ALPK3.SA", "ATOM3.SA", "FTCE3.SA", "LEVE3.SA",
-        "PCAR3.SA", "LAME3.SA", "LAME4.SA", "RAPT4.SA", "TFCO4.SA",
+        "AMER3.SA", "ARZZ3.SA", "IGTI11.SA", "IGTI3.SA",
+        "AMAR3.SA", "ALPK3.SA", "ATOM3.SA", "FTCE11.SA", "LEVE3.SA",  # FTCE3 -> FTCE11
+        "PCAR3.SA", "LAME3.SA", "LAME4.SA", "RAPT4.SA", "TFCO4.SA",  # Removido: CRFB3 (delisted)
         
         # === INDÚSTRIA (Diversos) ===
         "WEGE3.SA", "EMBR3.SA", "EMAE4.SA", "MYPK3.SA", "TUPY3.SA",
@@ -69,15 +69,15 @@ def get_acoes_b3_completas():
         # === SAÚDE ===
         "RDOR3.SA", "FLRY3.SA", "HAPV3.SA", "QUAL3.SA", "DASA3.SA",
         "GNDI3.SA", "PNVL3.SA", "CURY3.SA", "MATD3.SA", "ONCO3.SA",
-        "ALLHEALTHCARE3.SA", "AALR3.SA", "HYPE3.SA",
+        "AALR3.SA", "HYPE3.SA",  # Removido: ALLHEALTHCARE3 (delisted)
         
         # === EDUCAÇÃO ===
         "COGN3.SA", "YDUQ3.SA", "ANIM3.SA", "SEER3.SA", "BAHI3.SA",
         
         # === LOGÍSTICA E TRANSPORTE ===
-        "CCRO3.SA", "ECOR3.SA", "RADL3.SA", "RAIL3.SA", "AZUL4.SA",
-        "GOLL4.SA", "EMBR3.SA", "LOGN3.SA", "JSL3.SA", "TGAR3.SA",
-        "SIMH3.SA", "STTR3.SA",
+        "ECOR3.SA", "RADL3.SA", "RAIL3.SA", "AZUL4.SA",
+        "EMBR3.SA", "LOGN3.SA", "TGAR11.SA",  # TGAR3 -> TGAR11
+        "SIMH3.SA", "STTR3.SA",  # Removidos: CCRO3, GOLL4, JSL3 (delisted)
         
         # === HOLDINGS E PARTICIPAÇÕES ===
         "ITSA3.SA", "ITSA4.SA", "MULT3.SA", "B3SA3.SA", "LWSA3.SA",
@@ -99,9 +99,9 @@ def get_acoes_b3_completas():
         
         # === OUTROS SETORES ===
         "AZEV4.SA", "BEES3.SA", "CEEB3.SA", "ENJU3.SA", "FIQE3.SA",
-        "GOGL34.SA", "HETA4.SA", "LIPR3.SA", "NGRD3.SA", "OSXB3.SA",
+        "GOGL34.SA", "HETA4.SA", "NGRD3.SA", "OSXB3.SA",
         "PFRM3.SA", "PMAM3.SA", "RBVA11.SA", "RCSL3.SA", "RCSL4.SA",
-        "SHUL4.SA", "SMFT3.SA", "SNSY5.SA", "VITT3.SA", "WIZC3.SA",
+        "SHUL4.SA", "SMFT3.SA", "SNSY5.SA", "VITT3.SA", "WIZC3.SA",  # Removido: LIPR3 (delisted)
     ]
     
     return list(set(acoes))  # Remove duplicatas
@@ -120,7 +120,7 @@ def get_fiis_completos():
         
         # Logística
         "HGRU11.SA", "HGRE11.SA", "VILG11.SA", "TRXF11.SA", "TGAR11.SA",
-        "LVBI11.SA", "HGLG11.SA", "GBIO11.SA", "SPTW11.SA", "SDIL11.SA",
+        "LVBI11.SA", "HGLG11.SA", "SPTW11.SA", "SDIL11.SA",  # Removido: GBIO11 (delisted)
         
         # Híbridos
         "MXRF11.SA", "KNRI11.SA", "HGPO11.SA", "KNHY11.SA", "KNIP11.SA",
@@ -139,7 +139,7 @@ def get_fiis_completos():
         "HGBS11.SA", "NSLU11.SA", "HCTR11.SA", "DOMC11.SA", "PATL11.SA",
         
         # Agronegócio
-        "AGCX11.SA", "SOJA11.SA", "LFTT11.SA", "TSNC11.SA",
+        "AGCX11.SA", "LFTT11.SA", "TSNC11.SA",  # Removido: SOJA11 (delisted)
         
         # Outros
         "JSRE11.SA", "MCHY11.SA", "DEVA11.SA", "BRCR11.SA", "XPCI11.SA",
