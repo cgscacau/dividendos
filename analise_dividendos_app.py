@@ -7,7 +7,14 @@ from datetime import datetime, timedelta
 import numpy as np
 from collections import defaultdict
 import calendar
-from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
+
+# Importar listas de tickers
+try:
+    from tickers_fundamentus import get_tickers_fundamentus, METADATA
+    USE_FUNDAMENTUS = True
+except:
+    from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
+    USE_FUNDAMENTUS = False
 
 # --- Configurações da Página Streamlit ---
 st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Dividendos")
@@ -15,39 +22,29 @@ st.set_page_config(layout="wide", page_title="🎯 Otimizador de Carteira de Div
 # --- Lista Curada de Tickers da B3 ---
 
 def get_all_b3_tickers():
-    """Retorna lista expandida de tickers da B3 por categoria."""
+    """Retorna lista atualizada de tickers da B3 (Fundamentus + ETFs/BDRs)."""
     
-    # Importar listas expandidas
-    try:
-        from acoes_b3_completa import get_acoes_b3_completas, get_fiis_completos
-        acoes = get_acoes_b3_completas()
-        fiis = get_fiis_completos()
-    except:
-        # Fallback para lista básica se importação falhar
-        acoes = [
-            "ITUB4.SA", "BBDC4.SA", "BBAS3.SA", "PETR3.SA", "PETR4.SA", 
-            "VALE3.SA", "WEGE3.SA", "LREN3.SA", "ABEV3.SA", "TAEE11.SA",
-        ]
-        fiis = [
-            "HGLG11.SA", "VISC11.SA", "MXRF11.SA", "KNRI11.SA",
-        ]
+    # Usar lista atualizada do Fundamentus (418 tickers)
+    tickers_fundamentus = get_tickers_fundamentus()
     
-    # BDRs
-    bdrs = [
+    # Adicionar BDRs populares que podem não estar no Fundamentus
+    bdrs_extras = [
         "AAPL34.SA", "MSFT34.SA", "AMZO34.SA", "GOGL34.SA", "META34.SA",
         "TSLA34.SA", "NVDC34.SA", "NFLX34.SA", "DIS34.SA", "COCA34.SA",
-        "PETR34.SA", "JPMC34.SA", "VISA34.SA", "MAST34.SA", "PYPL34.SA"
+        "NIKE34.SA", "VISA34.SA", "PYPL34.SA", "BABA34.SA", "DISB34.SA"
     ]
     
-    # ETFs
-    etfs = [
+    # Adicionar ETFs populares que podem não estar no Fundamentus
+    etfs_extras = [
         "BOVA11.SA", "SMAL11.SA", "IVVB11.SA", "SPXI11.SA", "MATB11.SA",
         "PIBB11.SA", "ISUS11.SA", "FIND11.SA", "DIVO11.SA", "BOVX11.SA",
         "GOVE11.SA", "BRAX11.SA", "XBOV11.SA", "BOVV11.SA"
     ]
     
-    # Retornar todas as listas concatenadas
-    return acoes + fiis + bdrs + etfs
+    # Combinar e remover duplicatas
+    all_tickers = list(set(tickers_fundamentus + bdrs_extras + etfs_extras))
+    
+    return sorted(all_tickers)
 
 def categorize_ticker(ticker):
     """Categoriza o ticker em: Ação, FII, BDR ou ETF."""
